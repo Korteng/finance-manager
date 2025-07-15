@@ -1,23 +1,33 @@
 name: Java CI with Maven
 
-on: # Триггеры
+on: # Триггеры:
   push:
-    branches: [ "main", "dev" ]  # Запуск при пуше в эти ветки
+    branches: [ "dev", "feature/**" ]  # Запуск при пуше в dev/feature-ветки
   pull_request:
-    branches: [ "main" ]         # И при PR в main
+    branches: [ "main" ]              # И при PR в main
 
 jobs:
   build:
-    runs-on: ubuntu-latest       # Сборка на Ubuntu
+    runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4 # Шаг 1: Клонируем репозиторий
-      
-      - name: Set up JDK 17      # Шаг 2: Устанавливаем Java
+      - uses: actions/checkout@v4     # Шаг 1: Клонируем репозиторий
+
+      - name: Set up JDK 17           # Шаг 2: Ставим Java
         uses: actions/setup-java@v3
         with:
           java-version: '17'
           distribution: 'temurin'
-      
-      - name: Build with Maven   # Шаг 3: Собираем проект
+          cache: 'maven'
+
+      - name: Build with Maven        # Шаг 3: Собираем проект
         run: mvn clean package
+
+      - name: Run Tests               # Шаг 4: Запускаем тесты (если есть)
+        run: mvn test
+
+      - name: Upload Artifact         # Шаг 5: Сохраняем сборку (опционально)
+        uses: actions/upload-artifact@v4
+        with:
+          name: target-files
+          path: target/*.jar
