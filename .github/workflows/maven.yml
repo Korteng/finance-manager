@@ -2,7 +2,8 @@ name: Java CI with Maven
 
 on: # Триггеры:
   push:
-    branches: [ "dev", "feature/**" ]  # Запуск при пуше в dev/feature-ветки
+    branches: [ "main", "dev", "feature/**" ]  # Запуск при пуше в эти ветки
+    tags: [ "v*" ]  # И при создании тегов v1.0, v2.0 и т.д.
   pull_request:
     branches: [ "main" ]              # И при PR в main
 
