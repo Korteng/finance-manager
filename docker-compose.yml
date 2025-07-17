@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: finance-postgres
+    environment:
+      POSTGRES_USER: finance_user  # Логин для БД
+      POSTGRES_PASSWORD: finance_pass  # Пароль
+      POSTGRES_DB: finance_db  # Название БД
+    ports:
+      - "5432:5432"  # Проброс порта на локальную машину
+    volumes:
+      - postgres_data:/var/lib/postgresql/data  # Сохранение данных БД
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U finance_user -d finance_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .  # Собирает образ из Dockerfile
+    container_name: finance-app
+    ports:
+      - "8080:8080"  # Проброс порта приложения
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/finance_db
+      SPRING_DATASOURCE_USERNAME: finance_user
+      SPRING_DATASOURCE_PASSWORD: finance_pass
+    depends_on:
+      postgres:
+        condition: service_healthy  # Ждём старта БД
+
+volumes:
+  postgres_data:  # Именованный том для данных
