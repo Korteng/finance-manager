@@ -15,11 +15,14 @@ import ru.korteng.finance_manager.service.TransactionService;
 import java.math.BigDecimal;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import static org.hamcrest.Matchers.*;
 
 @WebMvcTest(TransactionController.class)
 @Import(TestcontainersConfiguration.class)
@@ -88,9 +91,35 @@ public class TransactionControllerTest {
     void whenInvalidAmount_thenReturnsCustomErrorResponse() throws Exception {
         mockMvc.perform(post("/api/transactions")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{ \"amount\": -1 }"))
+                        .content("""
+                {
+                    "amount": -1,
+                    "currency": "RUB",
+                    "categoryId": 1
+                }
+                """))
                 .andExpect(status().isUnprocessableEntity())
                 .andExpect(jsonPath("$.message").exists())
                 .andExpect(jsonPath("$.errors[0].field").value("amount"));
+    }
+
+    @Test
+    void whenMissingCurrency_thenReturns422() throws Exception {
+        mockMvc.perform(post("/api/transactions")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                {
+                    "amount": 500.0,
+                    "categoryId": 1
+                }
+                """))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.errors[0].field").value("currency"))
+                .andExpect(jsonPath("$.errors[0].message").value(
+                        allOf(
+                                notNullValue(),
+                                containsString("not be blank")
+                        )
+                ));
     }
 }
