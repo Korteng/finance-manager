@@ -1,11 +1,12 @@
 spring:
   datasource:
-    url: jdbc:h2:mem:testdb
-    username: sa
-    password: ""
+    url: jdbc:tc:postgresql:15-alpine:///testdb
+    username: test
+    password: test
+    driver-class-name: org.testcontainers.jdbc.ContainerDatabaseDriver
   jpa:
     hibernate.ddl-auto: none
     show-sql: true
-logging:
-  level:
-    org.hibernate.SQL: debug
+  testcontainers:
+    reuse:
+      enabled: true
