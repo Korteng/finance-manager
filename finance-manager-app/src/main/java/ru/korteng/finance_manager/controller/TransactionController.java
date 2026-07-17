@@ -97,6 +97,9 @@ public class TransactionController {
 
     private Long extractUserId() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null) {
+            return null;
+        }
         return (Long) auth.getDetails();
     }
 }

@@ -2,6 +2,8 @@ package ru.korteng.finance_manager.controller;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration;
+import org.springframework.boot.autoconfigure.security.servlet.SecurityFilterAutoConfiguration;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
@@ -11,11 +13,11 @@ import org.testcontainers.utility.TestcontainersConfiguration;
 import ru.korteng.finance_manager.dto.Transaction;
 import ru.korteng.finance_manager.dto.TransactionRequest;
 import ru.korteng.finance_manager.service.TransactionService;
+import ru.korteng.finance_manager.security.JwtUtil;
 
 import java.math.BigDecimal;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -24,7 +26,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import static org.hamcrest.Matchers.*;
 
-@WebMvcTest(TransactionController.class)
+@WebMvcTest(
+        controllers = TransactionController.class,
+        excludeAutoConfiguration = {SecurityAutoConfiguration.class, SecurityFilterAutoConfiguration.class}
+)
 @Import(TestcontainersConfiguration.class)
 public class TransactionControllerTest {
 
@@ -34,13 +39,16 @@ public class TransactionControllerTest {
     @MockitoBean
     private TransactionService transactionService;
 
+    @MockitoBean
+    private ru.korteng.finance_manager.security.JwtUtil jwtUtil;
+
     @Test
     void createTransaction_ValidRequest_Returns201() throws Exception {
         Transaction mockTransaction = new Transaction();
-        mockTransaction.setId(1L);  // Обязательно должен быть ID!
+        mockTransaction.setId(1L);
         mockTransaction.setAmount(new BigDecimal("500.00"));
         mockTransaction.setCurrency("RUB");
-        when(transactionService.createTransaction(any(TransactionRequest.class), any(Long.class)))
+        when(transactionService.createTransaction(any(TransactionRequest.class), any()))
                 .thenReturn(mockTransaction);
 
         mockMvc.perform(post("/api/transactions")
@@ -55,7 +63,7 @@ public class TransactionControllerTest {
                 """))
                 .andExpect(status().isCreated());
 
-        verify(transactionService).createTransaction(any(TransactionRequest.class), any(Long.class));
+        verify(transactionService).createTransaction(any(TransactionRequest.class), any());
     }
 
     @Test
