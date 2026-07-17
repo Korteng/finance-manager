@@ -5,6 +5,7 @@
 *.nar
 *.log
 *.ctxt
+.env
 
 ### --- Maven --- ###
 target/
@@ -12,7 +13,7 @@ pom.xml.versionsBackup
 pom.xml.next
 release.properties
 .mvn/wrapper/maven-wrapper.jar
-.mvn/wrapper/maven-wrapper.properties
+**/.mvn/wrapper/maven-wrapper.properties
 !**/src/main/**/target/  
 !**/src/test/**/target/
 
@@ -37,6 +38,15 @@ out/
 .settings/
 bin/
 .factorypath
+
+# Node 
+node_modules/
+
+# WSL/OS
+Thumbs.db
+
+# testcontainers/docker
+.testcontainers.properties
 
 # VS Code
 .vscode/
