@@ -40,7 +40,7 @@ public class TransactionControllerTest {
         mockTransaction.setId(1L);  // Обязательно должен быть ID!
         mockTransaction.setAmount(new BigDecimal("500.00"));
         mockTransaction.setCurrency("RUB");
-        when(transactionService.createTransaction(any(TransactionRequest.class)))
+        when(transactionService.createTransaction(any(TransactionRequest.class), any(Long.class)))
                 .thenReturn(mockTransaction);
 
         mockMvc.perform(post("/api/transactions")
@@ -55,7 +55,7 @@ public class TransactionControllerTest {
                 """))
                 .andExpect(status().isCreated());
 
-        verify(transactionService).createTransaction(any(TransactionRequest.class));
+        verify(transactionService).createTransaction(any(TransactionRequest.class), any(Long.class));
     }
 
     @Test

@@ -1,4 +1,6 @@
 spring:
+  kafka:
+    bootstrap-servers: localhost:9092
   datasource:
     url: jdbc:postgresql://localhost:5432/finance
     username: postgres
@@ -12,13 +14,19 @@ spring:
     ignore-migration-patterns: "*:pending"
   jpa:
     hibernate:
-      ddl-auto: none  # Полностью отключаем Hibernate DDL
-    show-sql: true    # Для дебага SQL-запросов
+      ddl-auto: none
+    show-sql: true
   sql:
     init:
-      mode: never     # Отключаем автоинициализацию данных
+      mode: never
+
 logging:
   level:
     org.flywaydb: DEBUG
     org.hibernate.SQL: DEBUG
     org.hibernate.orm.jdbc.bind: TRACE
+
+app:
+  jwt:
+    secret: change-this-to-a-real-256-bit-secret-key-in-env
+    expiration-ms: 86400000

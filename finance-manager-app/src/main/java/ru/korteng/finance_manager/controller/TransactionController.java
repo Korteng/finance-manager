@@ -10,6 +10,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import ru.korteng.finance_manager.dto.Transaction;
@@ -29,34 +31,35 @@ public class TransactionController {
     private final TransactionService transactionService;
 
     @Operation(
-        summary = "Create new transaction",
-        responses = {
-            @ApiResponse(
-                responseCode = "201",
-                description = "Transaction created successfully",
-                content = @Content(
-                    schema = @Schema(implementation = Transaction.class)
-                )
-            ),
-            @ApiResponse(
-                responseCode = "422",
-                description = "Validation error",
-                content = @Content(
-                    schema = @Schema(implementation = ErrorResponse.class)
-                )
-            ),
-            @ApiResponse(
-                responseCode = "404",
-                description = "Category not found",
-                content = @Content(
-                    schema = @Schema(implementation = ErrorResponse.class)
-                )
-            )
-        }
+            summary = "Create new transaction",
+            responses = {
+                    @ApiResponse(
+                            responseCode = "201",
+                            description = "Transaction created successfully",
+                            content = @Content(
+                                    schema = @Schema(implementation = Transaction.class)
+                            )
+                    ),
+                    @ApiResponse(
+                            responseCode = "422",
+                            description = "Validation error",
+                            content = @Content(
+                                    schema = @Schema(implementation = ErrorResponse.class)
+                            )
+                    ),
+                    @ApiResponse(
+                            responseCode = "404",
+                            description = "Category not found",
+                            content = @Content(
+                                    schema = @Schema(implementation = ErrorResponse.class)
+                            )
+                    )
+            }
     )
     @PostMapping
     public ResponseEntity<Transaction> createTransaction(@Valid @RequestBody TransactionRequest request) {
-        Transaction createdTransaction = transactionService.createTransaction(request);
+        Long userId = extractUserId();
+        Transaction createdTransaction = transactionService.createTransaction(request, userId);
         URI location = ServletUriComponentsBuilder
                 .fromCurrentRequest()
                 .path("/{id}")
@@ -66,29 +69,34 @@ public class TransactionController {
     }
 
     @Operation(
-        summary = "Get transaction by ID",
-        responses = {
-            @ApiResponse(
-                responseCode = "200",
-                description = "Transaction found",
-                content = @Content(schema = @Schema(implementation = TransactionResponse.class)
-                )
-            ),
-            @ApiResponse(
-                responseCode = "404",
-                description = "Transaction not found",
-                content = @Content(schema = @Schema(implementation = ErrorResponse.class)
-                )
-            ),
-            @ApiResponse(
-                responseCode = "422",
-                description = "Validation error")
-        }
+            summary = "Get transaction by ID",
+            responses = {
+                    @ApiResponse(
+                            responseCode = "200",
+                            description = "Transaction found",
+                            content = @Content(schema = @Schema(implementation = TransactionResponse.class)
+                            )
+                    ),
+                    @ApiResponse(
+                            responseCode = "404",
+                            description = "Transaction not found",
+                            content = @Content(schema = @Schema(implementation = ErrorResponse.class)
+                            )
+                    ),
+                    @ApiResponse(
+                            responseCode = "422",
+                            description = "Validation error")
+            }
     )
     @GetMapping("/{id}")
     public ResponseEntity<TransactionResponse> getTransactionById(
-        @Parameter(description = "ID транзакции", example = "123")
-        @PathVariable Long id) {
+            @Parameter(description = "ID транзакции", example = "123")
+            @PathVariable Long id) {
         return ResponseEntity.ok(transactionService.getTransactionById(id));
+    }
+
+    private Long extractUserId() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        return (Long) auth.getDetails();
     }
 }

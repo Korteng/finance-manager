@@ -58,7 +58,7 @@ services:
 
   notification-service:
     build:
-      context: ./notification-service
+      context: notification-service
     container_name: notification-service
     restart: unless-stopped
     ports:
@@ -93,10 +93,11 @@ services:
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
     healthcheck:
-      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092"]
+      test: [ "CMD-SHELL", "kafka-broker-api-versions --bootstrap-server kafka:9092" ]
       interval: 10s
       timeout: 10s
-      retries: 10
+      retries: 15
+      start_period: 40s
     volumes:
       - kafka_data:/var/lib/kafka/data
 
