@@ -5,28 +5,28 @@
 ## Архитектура
 
 ```
-                    ┌─────────────────────┐
+                    ┌───────────────────────┐
                     │   finance-manager-app │
-                    │   (REST API, JWT)      │
+                    │   (REST API, JWT)     │
                     └──────────┬────────────┘
                                │
-                    ┌──────────┴────────────┐
+                    ┌──────────┴─────────────┐
                     │                        │
-              ┌─────▼─────┐          ┌──────▼──────┐
+              ┌─────▼──────┐          ┌──────▼───────┐
               │ finance_db │          │    Kafka     │
-              │ (Postgres) │          │ transaction-  │
-              └───────────┘          │    events     │
-                                      └──────┬──────┘
+              │ (Postgres) │          │ transaction- │
+              └────────────┘          │    events    │
+                                      └──────┬───────┘
                                              │
-                                  ┌──────────▼───────────┐
+                                  ┌──────────▼────────────┐
                                   │  notification-service │
-                                  │  (Kafka consumer)      │
+                                  │  (Kafka consumer)     │
                                   └──────────┬────────────┘
                                              │
                                   ┌──────────▼──────────┐
-                                  │  notification_db     │
-                                  │  (Postgres)           │
-                                  └──────────────────────┘
+                                  │  notification_db    │
+                                  │  (Postgres)         │
+                                  └─────────────────────┘
 
         Prometheus ──scrape──> оба сервиса (/actuator/prometheus)
         Grafana ──query──> Prometheus (дашборды JVM/HTTP/Kafka)
