@@ -1,4 +1,6 @@
 spring:
+  application:
+    name: finance-manager-app
   kafka:
     bootstrap-servers: localhost:9092
   datasource:
@@ -30,3 +32,15 @@ app:
   jwt:
     secret: change-this-to-a-real-256-bit-secret-key-in-env
     expiration-ms: 86400000
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, metrics, prometheus
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    tags:
+      application: ${spring.application.name}
