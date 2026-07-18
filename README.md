@@ -113,9 +113,11 @@ cd finance-manager-app
 
 ## Мониторинг: скриншоты
 
-Дашборд Grafana (JVM Micrometer) под нагрузкой — 50 транзакций подряд, виден отклик Rate/GC/Heap:
+Дашборд Grafana (JVM Micrometer) под нагрузкой — 50 транзакций подряд, виден отклик CPU/GC/Threads/Heap:
 
-*(скриншоты добавляются в `docs/screenshots/`)*
+![JVM Overview](docs/screenshots/grafana-jvm-overview.jpg)
+
+![GC & Memory Pools](docs/screenshots/grafana-gc-memory.jpg)
 
 ## Структура репозитория
 
