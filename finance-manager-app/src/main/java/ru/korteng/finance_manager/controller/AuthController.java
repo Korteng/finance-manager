@@ -9,6 +9,7 @@ import ru.korteng.finance_manager.dto.AuthResponse;
 import ru.korteng.finance_manager.entity.User;
 import ru.korteng.finance_manager.repository.UserRepository;
 import ru.korteng.finance_manager.security.JwtUtil;
+import ru.korteng.finance_manager.security.TokenBlacklistService;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -18,6 +19,7 @@ public class AuthController {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
+    private final TokenBlacklistService tokenBlacklistService;
 
     @PostMapping("/register")
     public ResponseEntity<AuthResponse> register(@RequestBody AuthRequest request) {
@@ -45,5 +47,13 @@ public class AuthController {
 
         String token = jwtUtil.generateToken(user.getId(), user.getUsername());
         return ResponseEntity.ok(new AuthResponse(token));
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(@RequestHeader("Authorization") String authHeader) {
+        String token = authHeader.substring(7); // убираем "Bearer "
+        long remainingMs = jwtUtil.getRemainingValidityMs(token);
+        tokenBlacklistService.blacklist(token, remainingMs);
+        return ResponseEntity.ok().build();
     }
 }

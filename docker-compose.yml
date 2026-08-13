@@ -19,6 +19,20 @@ services:
       timeout: 5s
       retries: 5
 
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   app:
     build:
       context: ./finance-manager-app
@@ -31,10 +45,14 @@ services:
       SPRING_DATASOURCE_USERNAME: ${FINANCE_DB_USER}
       SPRING_DATASOURCE_PASSWORD: ${FINANCE_DB_PASSWORD}
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
     depends_on:
       postgres:
         condition: service_healthy
       kafka:
+        condition: service_healthy
+      redis:
         condition: service_healthy
 
   # ---------- Notification Service ----------
@@ -91,7 +109,7 @@ services:
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qg
     healthcheck:
       test: [ "CMD-SHELL", "kafka-broker-api-versions --bootstrap-server kafka:9092" ]
       interval: 10s
@@ -114,17 +132,17 @@ services:
       - notification-service
 
   grafana:
-      image: grafana/grafana:11.1.0
-      container_name: grafana
-      restart: unless-stopped
-      ports:
-        - "3000:3000"
-      environment:
-        GF_SECURITY_ADMIN_PASSWORD: admin
-      volumes:
-        - grafana_data:/var/lib/grafana
-      depends_on:
-        - prometheus
+    image: grafana/grafana:11.1.0
+    container_name: grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
 
 volumes:
   postgres_data:
@@ -132,3 +150,4 @@ volumes:
   kafka_data:
   prometheus_data:
   grafana_data:
+  redis_data:
