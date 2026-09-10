@@ -55,4 +55,10 @@ public class JwtUtil {
     public Long extractUserId(String token) {
         return extractClaims(token).get("userId", Long.class);
     }
+
+    public long getRemainingValidityMs(String token) {
+        Claims claims = extractClaims(token);
+        long expMs = claims.getExpiration().getTime();
+        return expMs - System.currentTimeMillis();
+    }
 }

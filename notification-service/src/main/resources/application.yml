@@ -32,6 +32,16 @@ management:
   endpoint:
     health:
       show-details: always
+      probes:
+        enabled: true
+  info:
+    env:
+      enabled: true
   metrics:
     tags:
       application: ${spring.application.name}
+
+info:
+  application:
+    name: ${spring.application.name}
+    version: 0.0.1-SNAPSHOT
