@@ -5,28 +5,28 @@
 ## Архитектура
 
 ```
-                    ┌─────────────────────┐
+                    ┌───────────────────────┐
                     │   finance-manager-app │
-                    │   (REST API, JWT)      │
+                    │   (REST API, JWT)     │
                     └──────────┬────────────┘
                                │
-                    ┌──────────┴────────────┐
+                    ┌──────────┴─────────────┐
                     │                        │
-              ┌─────▼─────┐          ┌──────▼──────┐
+              ┌─────▼──────┐          ┌──────▼───────┐
               │ finance_db │          │    Kafka     │
-              │ (Postgres) │          │ transaction-  │
-              └───────────┘          │    events     │
-                                      └──────┬──────┘
+              │ (Postgres) │          │ transaction- │
+              └────────────┘          │    events    │
+                                      └──────┬───────┘
                                              │
-                                  ┌──────────▼───────────┐
+                                  ┌──────────▼────────────┐
                                   │  notification-service │
-                                  │  (Kafka consumer)      │
+                                  │  (Kafka consumer)     │
                                   └──────────┬────────────┘
                                              │
                                   ┌──────────▼──────────┐
-                                  │  notification_db     │
-                                  │  (Postgres)           │
-                                  └──────────────────────┘
+                                  │  notification_db    │
+                                  │  (Postgres)         │
+                                  └─────────────────────┘
 
         Prometheus ──scrape──> оба сервиса (/actuator/prometheus)
         Grafana ──query──> Prometheus (дашборды JVM/HTTP/Kafka)
@@ -113,9 +113,11 @@ cd finance-manager-app
 
 ## Мониторинг: скриншоты
 
-Дашборд Grafana (JVM Micrometer) под нагрузкой — 50 транзакций подряд, виден отклик Rate/GC/Heap:
+Дашборд Grafana (JVM Micrometer) под нагрузкой — 50 транзакций подряд, виден отклик CPU/GC/Threads/Heap:
 
-*(скриншоты добавляются в `docs/screenshots/`)*
+![JVM Overview](docs/screenshots/grafana-jvm-overview.jpg)
+
+![GC & Memory Pools](docs/screenshots/grafana-gc-memory.jpg)
 
 ## Структура репозитория
 

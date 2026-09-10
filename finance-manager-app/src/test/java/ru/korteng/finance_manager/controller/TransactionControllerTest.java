@@ -14,6 +14,7 @@ import ru.korteng.finance_manager.dto.Transaction;
 import ru.korteng.finance_manager.dto.TransactionRequest;
 import ru.korteng.finance_manager.service.TransactionService;
 import ru.korteng.finance_manager.security.JwtUtil;
+import ru.korteng.finance_manager.security.TokenBlacklistService;
 
 import java.math.BigDecimal;
 
@@ -41,6 +42,9 @@ public class TransactionControllerTest {
 
     @MockitoBean
     private ru.korteng.finance_manager.security.JwtUtil jwtUtil;
+
+    @MockitoBean
+    private TokenBlacklistService tokenBlacklistService;
 
     @Test
     void createTransaction_ValidRequest_Returns201() throws Exception {
