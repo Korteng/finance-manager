@@ -26,11 +26,9 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-<<<<<<< HEAD
                 // CSRF отключён осознанно: аутентификация полностью stateless (JWT в заголовке
                 // Authorization, не в cookie), поэтому браузер не может автоматически подставить
                 // токен в чужой запрос — классическая CSRF-атака здесь структурно невозможна.
->>>>>>> dev
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
