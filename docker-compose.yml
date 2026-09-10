@@ -19,20 +19,6 @@ services:
       timeout: 5s
       retries: 5
 
-  redis:
-    image: redis:7-alpine
-    container_name: redis
-    restart: unless-stopped
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
   app:
     build:
       context: ./finance-manager-app
@@ -92,6 +78,18 @@ services:
       kafka:
         condition: service_healthy
 
+  redis:
+      image: redis:7-alpine
+      container_name: finance-redis
+      restart: unless-stopped
+      ports:
+        - "6379:6379"
+      healthcheck:
+        test: [ "CMD", "redis-cli", "ping" ]
+        interval: 5s
+        timeout: 5s
+        retries: 5
+
   # ---------- Kafka (KRaft mode, без Zookeeper) ----------
   kafka:
     image: confluentinc/cp-kafka:7.6.0
@@ -109,7 +107,7 @@ services:
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qg
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
     healthcheck:
       test: [ "CMD-SHELL", "kafka-broker-api-versions --bootstrap-server kafka:9092" ]
       interval: 10s
@@ -118,6 +116,21 @@ services:
       start_period: 40s
     volumes:
       - kafka_data:/var/lib/kafka/data
+  # ---------- Python Observer (SRE sidecar) ----------
+  observer:
+    build:
+      context: ./python-observer
+    container_name: python-observer
+    restart: unless-stopped
+    ports:
+      - "9100:9100"
+    environment:
+      TARGETS: "finance-manager-app=app:8080:/actuator/health,notification-service=notification-service:8081:/actuator/health"
+      POLL_INTERVAL_SECONDS: "5"
+    depends_on:
+      - app
+      - notification-service
+
   prometheus:
     image: prom/prometheus:v2.53.0
     container_name: prometheus
@@ -130,6 +143,7 @@ services:
     depends_on:
       - app
       - notification-service
+      - observer
 
   grafana:
     image: grafana/grafana:11.1.0
@@ -150,4 +164,3 @@ volumes:
   kafka_data:
   prometheus_data:
   grafana_data:
-  redis_data:

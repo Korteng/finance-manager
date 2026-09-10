@@ -66,4 +66,7 @@ Thumbs.db
 .DS_Store
 
 dependency-reduced-pom.xml
-*.orig  
+*.orig  python-observer/venv/
+python-observer/__pycache__/
+python-observer/.env
+*.pyc
