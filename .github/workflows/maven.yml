@@ -1,31 +1,33 @@
 name: Java CI with Maven
-on: # Триггеры:
+on:
   push:
-    branches: [ "main", "dev", "feature/**" ]  # Запуск при пуше в эти ветки
-    tags: [ "v*" ]  # И при создании тегов v1.0, v2.0 и т.д.
+    branches: [ "main", "dev", "feature/**" ]
+    tags: [ "v*" ]
   pull_request:
-    branches: [ "main" ]              # И при PR в main
+    branches: [ "main" ]
 jobs:
   build:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        module: [ finance-manager-app, notification-service ]
     defaults:
       run:
-        working-directory: finance-manager-app
+        working-directory: ${{ matrix.module }}
     steps:
-      - uses: actions/checkout@v4     # Шаг 1: Клонируем репозиторий
-      - name: Set up JDK 17           # Шаг 2: Ставим Java
+      - uses: actions/checkout@v4
+      - name: Set up JDK 17
         uses: actions/setup-java@v3
         with:
           java-version: '17'
           distribution: 'temurin'
           cache: 'maven'
-          cache-dependency-path: finance-manager-app/pom.xml
-      - name: Build with Maven        # Шаг 3: Собираем проект
+          cache-dependency-path: ${{ matrix.module }}/pom.xml
+      - name: Build and test with Maven
         run: mvn clean package
-      - name: Run Tests               # Шаг 4: Запускаем тесты (если есть)
-        run: mvn test
-      - name: Upload Artifact         # Шаг 5: Сохраняем сборку (опционально)
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: target-files
-          path: finance-manager-app/target/*.jar
+          name: ${{ matrix.module }}-jar
+          path: ${{ matrix.module }}/target/*.jar

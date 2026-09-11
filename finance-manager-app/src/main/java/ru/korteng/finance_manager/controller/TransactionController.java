@@ -92,7 +92,8 @@ public class TransactionController {
     public ResponseEntity<TransactionResponse> getTransactionById(
             @Parameter(description = "ID транзакции", example = "123")
             @PathVariable Long id) {
-        return ResponseEntity.ok(transactionService.getTransactionById(id));
+        Long userId = extractUserId();
+        return ResponseEntity.ok(transactionService.getTransactionById(id, userId));
     }
 
     private Long extractUserId() {
