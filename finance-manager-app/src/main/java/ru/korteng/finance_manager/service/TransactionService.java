@@ -66,8 +66,9 @@ public class TransactionService {
     }
 
     @Transactional(readOnly = true)
-    public TransactionResponse getTransactionById(Long id) {
+    public TransactionResponse getTransactionById(Long id, Long userId) {
         Transaction transaction = transactionRepository.findById(id)
+                .filter(t -> t.getUserId().equals(userId))
                 .orElseThrow(() -> new EntityNotFoundException("Transaction not found"));
         return TransactionResponse.fromEntity(transaction);
     }

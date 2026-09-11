@@ -127,6 +127,8 @@ services:
     environment:
       TARGETS: "finance-manager-app=app:8080:/actuator/health,notification-service=notification-service:8081:/actuator/health"
       POLL_INTERVAL_SECONDS: "5"
+      REDIS_HOST: "redis"
+      REDIS_PORT: "6379"
     depends_on:
       - app
       - notification-service
