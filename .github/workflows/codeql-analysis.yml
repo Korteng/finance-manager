@@ -18,8 +18,11 @@ jobs:
         uses: github/codeql-action/init@v3
         with:
           languages: 'java'
-      - name: Build project (нужен для анализа)
+      - name: Build finance-manager-app (нужен для анализа)
         working-directory: finance-manager-app
+        run: mvn -B verify
+      - name: Build notification-service (нужен для анализа)
+        working-directory: notification-service
         run: mvn -B verify
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
