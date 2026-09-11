@@ -150,5 +150,5 @@ finance-manager/
 
 - [ ] Реальная доставка уведомлений (email/webhook) вместо только записи в БД
 - [ ] Отдельный Grafana-дашборд под Kafka producer/consumer lag
-- [ ] Тестовое покрытие notification-service
+- [X] Тестовое покрытие notification-service
 - [ ] Provisioning Grafana-дашбордов через конфиг (без ручного импорта)
