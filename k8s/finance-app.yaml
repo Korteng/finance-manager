@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: finance-app
+  namespace: finance-manager
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: finance-app
+  template:
+    metadata:
+      labels:
+        app: finance-app
+    spec:
+      containers:
+        - name: finance-app
+          image: korteng/finance-manager-app:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: finance-config
+          env:
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: finance-secret
+                  key: FINANCE_DB_USER
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: finance-secret
+                  key: FINANCE_DB_PASSWORD
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 5
+          startupProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8080
+            failureThreshold: 90
+            periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: finance-app
+  namespace: finance-manager
+spec:
+  selector:
+    app: finance-app
+  ports:
+    - port: 8080
+      targetPort: 8080
