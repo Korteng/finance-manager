@@ -33,6 +33,7 @@ flowchart LR
 - **Apache Kafka** (KRaft mode, без Zookeeper) — асинхронный обмен событиями между сервисами
 - **Redis** — blacklist для отозванных JWT-токенов (logout)
 - **Docker Compose** — оркестрация всех сервисов для локальной разработки
+- **Kubernetes** — манифесты Deployment/Service/ConfigMap/Secret/HPA/Ingress для оркестрации в кластере, подробности в [`K8S.md`](K8S.md)
 - **Prometheus + Grafana** — мониторинг JVM-метрик, HTTP-запросов, GC, Kafka producer/consumer
 - **JUnit 5, Mockito, Testcontainers** — тестирование с реальным Postgres в интеграционных тестах
 - **GitHub Actions + CodeQL** — CI и статический анализ безопасности
@@ -133,6 +134,12 @@ cd finance-manager-app
 
 ![GC & Memory Pools](docs/screenshots/grafana-gc-memory.jpg)
 
+## Kubernetes
+
+Три прикладных сервиса (finance-manager-app, notification-service, python-observer) деплоятся в кластер через Deployment + Service, внешняя инфраструктура (Kafka/Postgres/Redis) остаётся в Docker Compose. Настроено горизонтальное автомасштабирование (HPA) с демонстрацией под реальной нагрузкой, а также разбор проблем, с которыми столкнулись при развёртывании (конфликт портов, медленный старт JVM под пробами, локальные образы без registry).
+
+Подробности, манифесты и скриншоты — в [`K8S.md`](K8S.md).
+
 ## Структура репозитория
 
 ```
@@ -142,6 +149,8 @@ finance-manager/
 ├── python-observer/          — Python/FastAPI-сайдкар: TCP+HTTP пробы обоих сервисов, опционально Redis PING
 ├── prometheus/
 │   └── prometheus.yml        — конфигурация scrape для finance-manager-app, notification-service, python-observer
+├── k8s/                       — манифесты Kubernetes (Deployment/Service/ConfigMap/Secret/HPA/Ingress)
+├── K8S.md                     — гайд по развёртыванию в Kubernetes и демонстрация HPA
 ├── docker-compose.yml        — оркестрация: 2×Postgres, Redis, Kafka, оба сервиса, python-observer, Prometheus, Grafana
 └── .env.example               — шаблон переменных окружения
 ```
@@ -150,5 +159,4 @@ finance-manager/
 
 - [ ] Реальная доставка уведомлений (email/webhook) вместо только записи в БД
 - [ ] Отдельный Grafana-дашборд под Kafka producer/consumer lag
-- [ ] Тестовое покрытие notification-service
 - [ ] Provisioning Grafana-дашбордов через конфиг (без ручного импорта)
