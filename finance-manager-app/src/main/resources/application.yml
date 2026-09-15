@@ -58,3 +58,7 @@ info:
   application:
     name: ${spring.application.name}
     version: 0.0.1-SNAPSHOT
+
+grpc:
+  server:
+    port: 9091
