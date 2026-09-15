@@ -34,6 +34,7 @@ flowchart LR
 - **Redis** - blacklist для отозванных JWT-токенов (logout)
 - **Docker Compose** - оркестрация всех сервисов для локальной разработки
 - **Kubernetes** - манифесты Deployment/Service/ConfigMap/Secret/HPA/Ingress для оркестрации в кластере, подробности в [`K8S.md`](K8S.md)
+- **gRPC** - один unary-эндпоинт (`GetTransaction`) поверх той же бизнес-логики, что и REST `GET /api/transactions/{id}` - proto-контракт в [`finance-manager-app/src/main/proto/transaction.proto`](finance-manager-app/src/main/proto/transaction.proto)
 - **Prometheus + Grafana** - мониторинг JVM-метрик, HTTP-запросов, GC, Kafka producer/consumer
 - **JUnit 5, Mockito, Testcontainers** - тестирование с реальным Postgres в интеграционных тестах
 - **GitHub Actions + CodeQL** - CI и статический анализ безопасности
@@ -79,6 +80,24 @@ GET  /api/transactions/{id}
 ```
 
 При успешном создании транзакции в Kafka-топик `transaction-events` публикуется событие `TRANSACTION_CREATED`.
+
+### gRPC (finance-manager-app, порт 9091)
+
+Тот же `GET /api/transactions/{id}` доступен и как unary gRPC-вызов - оба маршрута (REST и gRPC) вызывают один и тот же `TransactionService`, так что проверка владельца транзакции работает одинаково в обоих случаях. Контракт - [`transaction.proto`](finance-manager-app/src/main/proto/transaction.proto).
+
+```
+service TransactionGrpcService {
+  rpc GetTransaction (GetTransactionRequest) returns (TransactionGrpcResponse);
+}
+```
+
+Проверка через [grpcurl](https://github.com/fullstorydev/grpcurl) (сервис пока без reflection, схему передаём явно):
+
+```bash
+grpcurl -plaintext -import-path finance-manager-app/src/main/proto -proto transaction.proto \
+  -d '{"id": 1, "user_id": 1}' \
+  localhost:9091 ru.korteng.financemanager.grpc.TransactionGrpcService/GetTransaction
+```
 
 ### Уведомления (notification-service)
 
