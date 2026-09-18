@@ -7,25 +7,23 @@ import lombok.Setter;
 import lombok.ToString;
 
 @Entity
-@Table(name = "app_user")
+@Table(name = "category")
 @Getter
 @Setter
 @ToString
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
-public class User {
+public class Category {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @EqualsAndHashCode.Include
     private Long id;
 
-    @Column(nullable = false, unique = true)
-    private String username;
+    @Column(nullable = false, length = 100)
+    private String name;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "parent_id")
     @ToString.Exclude
-    @Column(nullable = false)
-    private String passwordHash;
-
-    @Column(nullable = false)
-    private String role = "USER";
+    private Category parent;
 }

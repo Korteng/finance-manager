@@ -10,7 +10,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.testcontainers.utility.TestcontainersConfiguration;
-import ru.korteng.finance_manager.dto.Transaction;
+import ru.korteng.finance_manager.entity.Transaction;
 import ru.korteng.finance_manager.dto.TransactionRequest;
 import ru.korteng.finance_manager.service.TransactionService;
 import ru.korteng.finance_manager.security.JwtUtil;

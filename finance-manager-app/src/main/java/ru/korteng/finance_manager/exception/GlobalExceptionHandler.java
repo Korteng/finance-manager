@@ -7,10 +7,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-import java.time.Instant;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -20,8 +18,8 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidation(MethodArgumentNotValidException ex) {
-        List<FieldErrorDetail> errors = ex.getBindingResult().getFieldErrors().stream()
-                .map(error -> new FieldErrorDetail(
+        List<ErrorResponse.FieldErrorDetail> errors = ex.getBindingResult().getFieldErrors().stream()
+                .map(error -> new ErrorResponse.FieldErrorDetail(
                         error.getField(),
                         error.getRejectedValue(),
                         error.getDefaultMessage()))
@@ -30,26 +28,6 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.UNPROCESSABLE_ENTITY)
                 .body(new ErrorResponse("Validation failed", errors));
-    }
-
-    public record FieldErrorDetail(
-            String field,
-            Object rejectedValue,
-            String message
-    ) {}
-
-    public record ErrorResponse(
-            String message,
-            List<FieldErrorDetail> errors,
-            Instant timestamp
-    ) {
-        public ErrorResponse(String message, List<FieldErrorDetail> errors) {
-            this(message, errors, Instant.now());
-        }
-
-        public ErrorResponse(String message) {
-            this(message, null, Instant.now());
-        }
     }
 
     @ExceptionHandler(EntityNotFoundException.class)

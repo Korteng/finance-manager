@@ -3,6 +3,7 @@ package ru.korteng.finance_manager.exception;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.time.Instant;
 import java.util.List;
@@ -24,6 +25,8 @@ public class ErrorResponse {
     }
 
     @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class FieldErrorDetail {
         private String field;
         private Object rejectedValue;
