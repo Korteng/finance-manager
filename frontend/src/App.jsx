@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { api } from './api.js'
-import rubleLogo from './assets/ruble-logo.png'
 import LoginForm from './components/LoginForm.jsx'
 import TransactionsTab from './components/TransactionsTab.jsx'
 import BudgetsTab from './components/BudgetsTab.jsx'
@@ -29,17 +28,11 @@ export default function App() {
   }
 
   if (!token) {
-    return (
-      <>
-        <img src={rubleLogo} alt="" className="corner-logo" />
-        <LoginForm onAuth={setToken} />
-      </>
-    )
+    return <LoginForm onAuth={setToken} />
   }
 
   return (
       <div>
-        <img src={rubleLogo} alt="" className="corner-logo" />
         <div className="topbar">
           <h1 style={{ margin: 0 }}>Finance Manager</h1>
           <button className="secondary" onClick={handleLogout}>Выйти</button>
