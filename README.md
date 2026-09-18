@@ -181,6 +181,10 @@ cd finance-manager-app
 
 Юнит-тесты сервисного слоя (Mockito, без поднятия контекста) и интеграционные тесты (`contextLoads`), поднимающие реальный Postgres через Testcontainers - требуется запущенный Docker.
 
+## Frontend: скриншот
+
+![Frontend](docs/screenshots/frontend.png)
+
 ## Мониторинг: скриншоты
 
 Дашборд Grafana (JVM Micrometer) под нагрузкой - 50 транзакций подряд, виден отклик CPU/GC/Threads/Heap:
