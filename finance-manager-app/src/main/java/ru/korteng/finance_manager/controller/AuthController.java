@@ -1,5 +1,6 @@
 package ru.korteng.finance_manager.controller;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -23,9 +24,9 @@ public class AuthController {
     private final TokenBlacklistService tokenBlacklistService;
 
     @PostMapping("/register")
-    public ResponseEntity<AuthResponse> register(@RequestBody AuthRequest request) {
+    public ResponseEntity<AuthResponse> register(@Valid @RequestBody AuthRequest request) {
         if (userRepository.findByUsername(request.getUsername()).isPresent()) {
-            return ResponseEntity.badRequest().build();
+            throw new IllegalStateException("Username '" + request.getUsername() + "' is already taken");
         }
 
         User user = new User();
@@ -38,7 +39,7 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<AuthResponse> login(@RequestBody AuthRequest request) {
+    public ResponseEntity<AuthResponse> login(@Valid @RequestBody AuthRequest request) {
         User user = userRepository.findByUsername(request.getUsername())
                 .orElseThrow(() -> new BadCredentialsException("Invalid username or password"));
 

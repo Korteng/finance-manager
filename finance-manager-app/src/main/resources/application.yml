@@ -34,7 +34,7 @@ logging:
 
 app:
   jwt:
-    secret: change-this-to-a-real-256-bit-secret-key-in-env
+    secret: ${APP_JWT_SECRET:dev-only-insecure-default-secret-change-me-32chars-min}
     expiration-ms: 86400000
 
 management:

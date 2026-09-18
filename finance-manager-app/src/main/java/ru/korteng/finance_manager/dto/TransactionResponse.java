@@ -1,6 +1,7 @@
 package ru.korteng.finance_manager.dto;
 
 import lombok.Data;
+import ru.korteng.finance_manager.entity.Transaction;
 
 import java.math.BigDecimal;
 import java.time.Instant;

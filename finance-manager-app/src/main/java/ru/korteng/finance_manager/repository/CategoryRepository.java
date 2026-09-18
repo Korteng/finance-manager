@@ -2,7 +2,7 @@ package ru.korteng.finance_manager.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
-import ru.korteng.finance_manager.dto.Category;
+import ru.korteng.finance_manager.entity.Category;
 
 import java.util.List;
 

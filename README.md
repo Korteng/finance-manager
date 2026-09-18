@@ -1,6 +1,6 @@
 # Finance Manager
 
-Персональное приложение для учёта финансов с событийно-ориентированной микросервисной архитектурой: создание транзакции публикует событие в Kafka, которое асинхронно обрабатывает отдельный сервис уведомлений.
+Персональное приложение для учёта финансов с событийно-ориентированной микросервисной архитектурой: создание транзакции публикует событие в Kafka, которое асинхронно обрабатывает отдельный сервис уведомлений. Backend на Spring Boot, фронтенд на React.
 
 ## Архитектура
 
@@ -10,6 +10,8 @@ flowchart LR
     PROM -- "scrape" --> OBS["python-observer<br/>(FastAPI)"]
     PROM -- "scrape" --> APP["finance-manager-app<br/>(REST API, JWT)"]
     PROM -- "scrape" --> NOTIF["notification-service<br/>(Kafka consumer)"]
+
+    FE["frontend<br/>(React + Vite)"] -- "REST" --> APP
 
     OBS -. "probe" .-> APP
     OBS -. "probe" .-> NOTIF
@@ -22,13 +24,14 @@ flowchart LR
     NOTIF --> DB2[("notification_db<br/>(Postgres)")]
 ```
 
-**Принцип разделения:** `finance-manager-app` отвечает за бизнес-логику транзакций и не знает, кто и как обрабатывает события - публикует их в Kafka и продолжает работу. `notification-service` независимо читает поток событий, ведёт собственный лог уведомлений в отдельной БД и может быть остановлен/обновлён без влияния на основной сервис. `python-observer` не входит в путь запроса ни одного из сервисов - это внешний наблюдатель, который опрашивает их снаружи и может быть остановлен без какого-либо влияния на работу приложения.
+**Принцип разделения:** `finance-manager-app` отвечает за бизнес-логику транзакций и не знает, кто и как обрабатывает события - публикует их в Kafka и продолжает работу. `notification-service` независимо читает поток событий, ведёт собственный лог уведомлений в отдельной БД и может быть остановлен/обновлён без влияния на основной сервис. `python-observer` не входит в путь запроса ни одного из сервисов - это внешний наблюдатель, который опрашивает их снаружи и может быть остановлен без какого-либо влияния на работу приложения. `frontend` - обычный клиент REST API, не участвует в событийном обмене.
 
 ## Стек технологий
 
+**Backend**
 - **Java 17**, Spring Boot 3.5.16
-- **Spring Security + JWT** - аутентификация без сессий (stateless)
-- **Spring Data JPA + PostgreSQL** - отдельная БД на каждый сервис
+- **Spring Security + JWT** - аутентификация без сессий (stateless), секрет подписи берётся из переменной окружения `APP_JWT_SECRET`, а не хранится в коде
+- **Spring Data JPA + PostgreSQL** - отдельная БД на каждый сервис, сущности и DTO разнесены по разным пакетам, наружу через API отдаются только DTO
 - **Flyway** - версионирование схемы БД
 - **Apache Kafka** (KRaft mode, без Zookeeper) - асинхронный обмен событиями между сервисами
 - **Redis** - blacklist для отозванных JWT-токенов (logout)
@@ -36,16 +39,22 @@ flowchart LR
 - **Kubernetes** - манифесты Deployment/Service/ConfigMap/Secret/HPA/Ingress для оркестрации в кластере, подробности в [`K8S.md`](K8S.md)
 - **gRPC** - один unary-эндпоинт (`GetTransaction`) поверх той же бизнес-логики, что и REST `GET /api/transactions/{id}` - proto-контракт в [`finance-manager-app/src/main/proto/transaction.proto`](finance-manager-app/src/main/proto/transaction.proto)
 - **Prometheus + Grafana** - мониторинг JVM-метрик, HTTP-запросов, GC, Kafka producer/consumer
-- **JUnit 5, Mockito, Testcontainers** - тестирование с реальным Postgres в интеграционных тестах
+- **JUnit 5, Mockito, Testcontainers** - юнит-тесты на сервисном слое (включая проверку бюджетной логики через моки Kafka) и интеграционные тесты с реальным Postgres
 - **GitHub Actions + CodeQL** - CI и статический анализ безопасности
 
+**Frontend**
+- **React 19 + Vite** - тёмная тема, две вкладки (Транзакции, Бюджеты)
+- Токен JWT живёт только в памяти вкладки, без localStorage - разлогин при обновлении страницы, для пет-проекта это осознанный компромисс в пользу простоты
+
 ## Быстрый старт
+
+Backend и инфраструктура:
 
 ```bash
 git clone https://github.com/Korteng/finance-manager.git
 cd finance-manager
 cp .env.example .env
-# отредактируй .env - задай реальные пароли для БД
+# отредактируй .env - задай реальные пароли для БД и свой APP_JWT_SECRET
 docker compose up --build
 ```
 
@@ -60,6 +69,16 @@ docker compose up --build
 | Kafka | localhost:9092 |
 | python-observer | http://localhost:9100/metrics |
 
+Frontend (отдельно, в соседней консоли):
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+По умолчанию фронтенд ходит на `http://localhost:8080`, переопределяется переменной `VITE_API_BASE_URL`. Приложение доступно на `http://localhost:5173`.
+
 ## API
 
 ### Аутентификация (finance-manager-app)
@@ -72,14 +91,31 @@ POST /api/auth/logout     Authorization: Bearer <token>  → 200 OK
 
 Токен `logout` кладётся в Redis-blacklist с TTL, равным оставшемуся сроку его действия - дальше `JwtAuthFilter` отклоняет его при каждом запросе, даже если подпись валидна и срок жизни токена не истёк.
 
+### Категории (finance-manager-app, требует JWT)
+
+```
+GET /api/categories
+GET /api/categories/{id}
+```
+
 ### Транзакции (finance-manager-app, требует JWT в заголовке `Authorization: Bearer <token>`)
 
 ```
 POST /api/transactions   { "amount": 500.00, "currency": "RUB", "categoryId": 1, "description": "..." }
 GET  /api/transactions/{id}
+GET  /api/transactions?categoryId=&from=&to=
 ```
 
-При успешном создании транзакции в Kafka-топик `transaction-events` публикуется событие `TRANSACTION_CREATED`.
+При успешном создании транзакции в Kafka-топик `transaction-events` публикуется событие `TRANSACTION_CREATED`. Если для категории и текущего периода задан бюджет и сумма трат по нему превышена, дополнительно публикуется `BUDGET_EXCEEDED`.
+
+### Бюджеты (finance-manager-app, требует JWT)
+
+```
+POST /api/budgets   { "categoryId": 1, "period": "2026-09", "limitAmount": 20000.00 }
+GET  /api/budgets?period=2026-09
+```
+
+`GET` без параметра `period` возвращает бюджеты за текущий месяц, для каждого - лимит, фактические траты по категории за период и флаг `exceeded`.
 
 ### gRPC (finance-manager-app, порт 9091)
 
@@ -143,7 +179,7 @@ cd finance-manager-app
 ./mvnw test
 ```
 
-Интеграционные тесты (`contextLoads`) поднимают реальный Postgres через Testcontainers - требуется запущенный Docker.
+Юнит-тесты сервисного слоя (Mockito, без поднятия контекста) и интеграционные тесты (`contextLoads`), поднимающие реальный Postgres через Testcontainers - требуется запущенный Docker.
 
 ## Мониторинг: скриншоты
 
@@ -165,6 +201,7 @@ cd finance-manager-app
 finance-manager/
 ├── finance-manager-app/      - основной REST API, JWT-авторизация, Kafka producer
 ├── notification-service/     - Kafka consumer, независимая БД
+├── frontend/                  - React + Vite клиент REST API
 ├── python-observer/          - Python/FastAPI-сайдкар: TCP+HTTP пробы обоих сервисов, опционально Redis PING
 ├── prometheus/
 │   └── prometheus.yml        - конфигурация scrape для finance-manager-app, notification-service, python-observer
