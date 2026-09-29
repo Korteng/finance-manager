@@ -1,17 +1,25 @@
-package ru.korteng.finance_manager.dto;
+package ru.korteng.finance_manager.entity;
 
 import jakarta.persistence.*;
-import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.ToString;
 
 import java.math.BigDecimal;
 import java.time.Instant;
 
 @Entity
-@Data
 @Table(name = "transaction")
+@Getter
+@Setter
+@ToString
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class Transaction {
 
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @EqualsAndHashCode.Include
     private Long id;
 
     @Column(name = "user_id", nullable = false)
@@ -25,6 +33,7 @@ public class Transaction {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id")
+    @ToString.Exclude
     private Category category;
 
     @Column(length = 500)
@@ -32,5 +41,4 @@ public class Transaction {
 
     @Column(name = "created_at", updatable = false)
     private Instant createdAt;
-
 }

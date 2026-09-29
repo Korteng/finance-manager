@@ -34,6 +34,10 @@ public class NotificationService {
 
     private String buildMessage(TransactionEvent event) {
         var payload = event.getPayload();
+        if ("BUDGET_EXCEEDED".equals(event.getEventType())) {
+            return "Бюджет превышен: категория «%s», потрачено %s из лимита %s"
+                    .formatted(payload.getCategory(), payload.getAmount(), payload.getLimit());
+        }
         return "Транзакция: %s, категория: %s, сумма: %s"
                 .formatted(payload.getType(), payload.getCategory(), payload.getAmount());
     }

@@ -14,13 +14,15 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
-import ru.korteng.finance_manager.dto.Transaction;
+import ru.korteng.finance_manager.entity.Transaction;
 import ru.korteng.finance_manager.dto.TransactionRequest;
 import ru.korteng.finance_manager.dto.TransactionResponse;
 import ru.korteng.finance_manager.exception.ErrorResponse;
 import ru.korteng.finance_manager.service.TransactionService;
 
 import java.net.URI;
+import java.time.Instant;
+import java.util.List;
 
 @RestController
 @RequestMapping("api/transactions")
@@ -37,7 +39,7 @@ public class TransactionController {
                             responseCode = "201",
                             description = "Transaction created successfully",
                             content = @Content(
-                                    schema = @Schema(implementation = Transaction.class)
+                                    schema = @Schema(implementation = TransactionResponse.class)
                             )
                     ),
                     @ApiResponse(
@@ -57,7 +59,7 @@ public class TransactionController {
             }
     )
     @PostMapping
-    public ResponseEntity<Transaction> createTransaction(@Valid @RequestBody TransactionRequest request) {
+    public ResponseEntity<TransactionResponse> createTransaction(@Valid @RequestBody TransactionRequest request) {
         Long userId = extractUserId();
         Transaction createdTransaction = transactionService.createTransaction(request, userId);
         URI location = ServletUriComponentsBuilder
@@ -65,7 +67,7 @@ public class TransactionController {
                 .path("/{id}")
                 .buildAndExpand(createdTransaction.getId())
                 .toUri();
-        return ResponseEntity.created(location).body(createdTransaction);
+        return ResponseEntity.created(location).body(TransactionResponse.fromEntity(createdTransaction));
     }
 
     @Operation(
@@ -94,6 +96,15 @@ public class TransactionController {
             @PathVariable Long id) {
         Long userId = extractUserId();
         return ResponseEntity.ok(transactionService.getTransactionById(id, userId));
+    }
+
+    @GetMapping
+    public ResponseEntity<List<TransactionResponse>> listTransactions(
+            @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) Instant from,
+            @RequestParam(required = false) Instant to) {
+        Long userId = extractUserId();
+        return ResponseEntity.ok(transactionService.listTransactions(userId, categoryId, from, to));
     }
 
     private Long extractUserId() {

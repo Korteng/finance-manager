@@ -22,5 +22,6 @@ public class TransactionEvent {
         private BigDecimal amount;
         private String category;
         private String type;
+        private BigDecimal limit;
     }
 }
