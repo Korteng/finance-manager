@@ -7,7 +7,7 @@ spring:
   datasource:
     url: jdbc:postgresql://localhost:5433/notification_db
     username: notification_user
-    password: change_me
+    password: ${NOTIFICATION_DB_PASSWORD:change_me}
   jpa:
     hibernate:
       ddl-auto: validate
@@ -45,3 +45,7 @@ info:
   application:
     name: ${spring.application.name}
     version: 0.0.1-SNAPSHOT
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/

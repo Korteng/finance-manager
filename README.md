@@ -20,9 +20,12 @@ flowchart LR
     APP --> KAFKA{{"Kafka<br/>transaction-events"}}
     KAFKA --> NOTIF
     NOTIF --> DB2[("notification_db<br/>(Postgres)")]
+
+    APP -. "register" .-> DISC["discovery-server<br/>(Eureka)"]
+    NOTIF -. "register" .-> DISC
 ```
 
-**Принцип разделения:** `finance-manager-app` отвечает за бизнес-логику транзакций и не знает, кто и как обрабатывает события - публикует их в Kafka и продолжает работу. `notification-service` независимо читает поток событий, ведёт собственный лог уведомлений в отдельной БД и может быть остановлен/обновлён без влияния на основной сервис. `python-observer` не входит в путь запроса ни одного из сервисов - это внешний наблюдатель, который опрашивает их снаружи и может быть остановлен без какого-либо влияния на работу приложения.
+**Принцип разделения:** `finance-manager-app` отвечает за бизнес-логику транзакций и не знает, кто и как обрабатывает события - публикует их в Kafka и продолжает работу. `notification-service` независимо читает поток событий, ведёт собственный лог уведомлений в отдельной БД и может быть остановлен/обновлён без влияния на основной сервис. `python-observer` не входит в путь запроса ни одного из сервисов - это внешний наблюдатель, который опрашивает их снаружи и может быть остановлен без какого-либо влияния на работу приложения. Оба прикладных сервиса регистрируются в `discovery-server` (Eureka) - пока не используется для клиентского балансирования нагрузки, но уже даёт единый реестр живых инстансов, к которому можно подключить Feign/Ribbon или API Gateway без правки адресов вручную.
 
 ## Стек технологий
 
@@ -34,6 +37,7 @@ flowchart LR
 - **Redis** - blacklist для отозванных JWT-токенов (logout)
 - **Docker Compose** - оркестрация всех сервисов для локальной разработки
 - **Kubernetes** - манифесты Deployment/Service/ConfigMap/Secret/HPA/Ingress для оркестрации в кластере, подробности в [`K8S.md`](K8S.md)
+- **Spring Cloud Netflix Eureka** - service discovery, `finance-manager-app` и `notification-service` регистрируются как клиенты в `discovery-server`, дашборд доступен на `:8761`
 - **gRPC** - один unary-эндпоинт (`GetTransaction`) поверх той же бизнес-логики, что и REST `GET /api/transactions/{id}` - proto-контракт в [`finance-manager-app/src/main/proto/transaction.proto`](finance-manager-app/src/main/proto/transaction.proto)
 - **Prometheus + Grafana** - мониторинг JVM-метрик, HTTP-запросов, GC, Kafka producer/consumer
 - **JUnit 5, Mockito, Testcontainers** - тестирование с реальным Postgres в интеграционных тестах
@@ -55,6 +59,7 @@ docker compose up --build
 |---|---|
 | finance-manager-app | http://localhost:8080 |
 | notification-service | http://localhost:8081 |
+| discovery-server (Eureka) | http://localhost:8761 |
 | Prometheus | http://localhost:9090 |
 | Grafana | http://localhost:3000 (admin/admin) |
 | Kafka | localhost:9092 |
@@ -153,6 +158,10 @@ cd finance-manager-app
 
 ![GC & Memory Pools](docs/screenshots/grafana-gc-memory.jpg)
 
+Дашборд Eureka (`discovery-server`) - оба прикладных сервиса зарегистрированы и в статусе UP:
+
+![Eureka Dashboard](docs/screenshots/eureka-dashboard.png)
+
 ## Kubernetes
 
 Три прикладных сервиса (finance-manager-app, notification-service, python-observer) деплоятся в кластер через Deployment + Service, внешняя инфраструктура (Kafka/Postgres/Redis) остаётся в Docker Compose. Настроено горизонтальное автомасштабирование (HPA) с демонстрацией под реальной нагрузкой, а также разбор проблем, с которыми столкнулись при развёртывании (конфликт портов, медленный старт JVM под пробами, локальные образы без registry).
@@ -165,6 +174,7 @@ cd finance-manager-app
 finance-manager/
 ├── finance-manager-app/      - основной REST API, JWT-авторизация, Kafka producer
 ├── notification-service/     - Kafka consumer, независимая БД
+├── discovery-server/         - Eureka-сервер service discovery, регистрация обоих прикладных сервисов
 ├── python-observer/          - Python/FastAPI-сайдкар: TCP+HTTP пробы обоих сервисов, опционально Redis PING
 ├── prometheus/
 │   └── prometheus.yml        - конфигурация scrape для finance-manager-app, notification-service, python-observer

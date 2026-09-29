@@ -19,6 +19,14 @@ services:
       timeout: 5s
       retries: 5
 
+  discovery-server:
+    build:
+      context: ./discovery-server
+    container_name: discovery-server
+    restart: unless-stopped
+    ports:
+      - "8761:8761"
+
   app:
     build:
       context: ./finance-manager-app
@@ -33,6 +41,7 @@ services:
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
     depends_on:
       postgres:
         condition: service_healthy
@@ -40,6 +49,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      discovery-server:
+        condition: service_started
 
   # ---------- Notification Service ----------
   notification-db:
@@ -72,11 +83,14 @@ services:
       SPRING_DATASOURCE_USERNAME: ${NOTIFICATION_DB_USER}
       SPRING_DATASOURCE_PASSWORD: ${NOTIFICATION_DB_PASSWORD}
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
     depends_on:
       notification-db:
         condition: service_healthy
       kafka:
         condition: service_healthy
+      discovery-server:
+        condition: service_started
 
   redis:
       image: redis:7-alpine
