@@ -69,7 +69,7 @@ public class AuthControllerTest {
     }
 
     @Test
-    void register_ExistingUsername_Returns400() throws Exception {
+    void register_ExistingUsername_Returns409() throws Exception {
         User existing = new User();
         existing.setUsername("taken");
         when(userRepository.findByUsername("taken")).thenReturn(Optional.of(existing));
@@ -79,7 +79,8 @@ public class AuthControllerTest {
                         .content("""
                                 {"username":"taken","password":"pass123"}
                                 """))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("Username 'taken' is already taken"));
 
         verify(userRepository, never()).save(any());
     }
