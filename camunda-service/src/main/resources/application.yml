@@ -1,0 +1,37 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: camunda-service
+  datasource:
+    url: jdbc:postgresql://localhost:5434/${CAMUNDA_DB_NAME:camunda_db}
+    username: ${CAMUNDA_DB_USER:camunda}
+    password: ${CAMUNDA_DB_PASSWORD:change_me}
+    driver-class-name: org.postgresql.Driver
+
+camunda:
+  bpm:
+    admin-user:
+      id: admin
+      password: ${CAMUNDA_ADMIN_PASSWORD:change_me}
+      first-name: Denis
+      last-name: Kozlov
+    filter:
+      create: Все задачи
+    database:
+      schema-update: true
+    webapp:
+      index-redirect-enabled: true
+
+eureka:
+  client:
+    enabled: false
+    register-with-eureka: false
+    fetch-registry: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health

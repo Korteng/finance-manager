@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                   xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                   id="Definitions_transaction-approval"
+                   targetNamespace="http://ru.korteng/camunda-service">
+
+  <bpmn:process id="transaction-approval" name="Одобрение крупной транзакции" isExecutable="true" camunda:historyTimeToLive="180">
+
+    <bpmn:startEvent id="StartEvent_1" name="Новая транзакция">
+      <bpmn:outgoing>Flow_start_to_check</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <bpmn:serviceTask id="Task_CheckAmount" name="Проверка суммы"
+                       camunda:delegateExpression="${amountCheckDelegate}">
+      <bpmn:incoming>Flow_start_to_check</bpmn:incoming>
+      <bpmn:outgoing>Flow_check_to_gateway</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:exclusiveGateway id="Gateway_ApprovalNeeded" name="Требуется одобрение?" default="Flow_gateway_to_auto">
+      <bpmn:incoming>Flow_check_to_gateway</bpmn:incoming>
+      <bpmn:outgoing>Flow_gateway_to_auto</bpmn:outgoing>
+      <bpmn:outgoing>Flow_gateway_to_approve</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:userTask id="Task_Approve" name="Одобрение крупной транзакции" camunda:candidateGroups="finance-approvers">
+      <bpmn:incoming>Flow_gateway_to_approve</bpmn:incoming>
+      <bpmn:outgoing>Flow_approve_to_end</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:endEvent id="EndEvent_AutoExecuted" name="Выполнено автоматически (лимит не превышен)">
+      <bpmn:incoming>Flow_gateway_to_auto</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="EndEvent_ApprovedExecuted" name="Выполнено после одобрения">
+      <bpmn:incoming>Flow_approve_to_end</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="Flow_start_to_check" sourceRef="StartEvent_1" targetRef="Task_CheckAmount"/>
+    <bpmn:sequenceFlow id="Flow_check_to_gateway" sourceRef="Task_CheckAmount" targetRef="Gateway_ApprovalNeeded"/>
+    <bpmn:sequenceFlow id="Flow_gateway_to_auto" sourceRef="Gateway_ApprovalNeeded" targetRef="EndEvent_AutoExecuted"/>
+    <bpmn:sequenceFlow id="Flow_gateway_to_approve" sourceRef="Gateway_ApprovalNeeded" targetRef="Task_Approve">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">${requiresApproval == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_approve_to_end" sourceRef="Task_Approve" targetRef="EndEvent_ApprovedExecuted"/>
+
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="transaction-approval">
+
+      <bpmndi:BPMNShape id="StartEvent_1_di" bpmnElement="StartEvent_1">
+        <dc:Bounds x="152" y="200" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_CheckAmount_di" bpmnElement="Task_CheckAmount">
+        <dc:Bounds x="240" y="178" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Gateway_ApprovalNeeded_di" bpmnElement="Gateway_ApprovalNeeded" isMarkerVisible="true">
+        <dc:Bounds x="400" y="193" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_Approve_di" bpmnElement="Task_Approve">
+        <dc:Bounds x="500" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="EndEvent_ApprovedExecuted_di" bpmnElement="EndEvent_ApprovedExecuted">
+        <dc:Bounds x="662" y="102" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="EndEvent_AutoExecuted_di" bpmnElement="EndEvent_AutoExecuted">
+        <dc:Bounds x="500" y="300" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNEdge id="Flow_start_to_check_di" bpmnElement="Flow_start_to_check">
+        <di:waypoint x="188" y="218"/>
+        <di:waypoint x="240" y="218"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_check_to_gateway_di" bpmnElement="Flow_check_to_gateway">
+        <di:waypoint x="340" y="218"/>
+        <di:waypoint x="400" y="218"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_gateway_to_approve_di" bpmnElement="Flow_gateway_to_approve">
+        <di:waypoint x="425" y="193"/>
+        <di:waypoint x="425" y="120"/>
+        <di:waypoint x="500" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_approve_to_end_di" bpmnElement="Flow_approve_to_end">
+        <di:waypoint x="600" y="120"/>
+        <di:waypoint x="662" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_gateway_to_auto_di" bpmnElement="Flow_gateway_to_auto">
+        <di:waypoint x="425" y="243"/>
+        <di:waypoint x="425" y="318"/>
+        <di:waypoint x="500" y="318"/>
+      </bpmndi:BPMNEdge>
+
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

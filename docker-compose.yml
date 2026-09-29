@@ -92,6 +92,57 @@ services:
       discovery-server:
         condition: service_started
 
+  camunda-db:
+    image: postgres:15
+    container_name: camunda-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${CAMUNDA_DB_USER}
+      POSTGRES_PASSWORD: ${CAMUNDA_DB_PASSWORD}
+      POSTGRES_DB: ${CAMUNDA_DB_NAME}
+    ports:
+      - "5434:5432"   # ещё один отдельный порт на хосте — 5432/5433 уже заняты
+    volumes:
+      - camunda_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${CAMUNDA_DB_USER} -d ${CAMUNDA_DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  camunda-service:
+    build:
+      context: ./camunda-service
+    container_name: camunda-service
+    restart: unless-stopped
+    ports:
+      - "8082:8082"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://camunda-db:5432/${CAMUNDA_DB_NAME}
+      SPRING_DATASOURCE_USERNAME: ${CAMUNDA_DB_USER}
+      SPRING_DATASOURCE_PASSWORD: ${CAMUNDA_DB_PASSWORD}
+      CAMUNDA_ADMIN_PASSWORD: ${CAMUNDA_ADMIN_PASSWORD}
+    depends_on:
+      camunda-db:
+        condition: service_healthy
+
+  api-gateway:
+    build:
+      context: ./api-gateway
+    container_name: api-gateway
+    restart: unless-stopped
+    ports:
+      - "8090:8090"
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
+    depends_on:
+      discovery-server:
+        condition: service_started
+      app:
+        condition: service_started
+      notification-service:
+        condition: service_started
+
   redis:
       image: redis:7-alpine
       container_name: finance-redis
@@ -177,6 +228,7 @@ services:
 volumes:
   postgres_data:
   notification_postgres_data:
+  camunda_postgres_data:
   kafka_data:
   prometheus_data:
   grafana_data:
