@@ -1,9 +1,9 @@
 package ru.korteng.finance_manager.service;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import ru.korteng.finance_manager.dto.TransactionRequest;
@@ -16,8 +16,10 @@ import ru.korteng.finance_manager.repository.CategoryRepository;
 import ru.korteng.finance_manager.repository.TransactionRepository;
 
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -41,8 +43,14 @@ class TransactionServiceTest {
     @Mock
     private BudgetRepository budgetRepository;
 
-    @InjectMocks
+    private final Clock clock = Clock.fixed(Instant.parse("2024-01-15T10:00:00Z"), ZoneOffset.UTC);
+
     private TransactionService transactionService;
+
+    @BeforeEach
+    void setUp() {
+        transactionService = new TransactionService(transactionRepository, categoryRepository, eventPublisher, budgetRepository, clock);
+    }
 
     private Category category() {
         Category category = new Category();
