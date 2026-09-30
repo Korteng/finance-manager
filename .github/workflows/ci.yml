@@ -1,0 +1,86 @@
+name: CI
+
+on:
+  push:
+    branches: [ "main", "dev", "feature/**" ]
+    tags: [ "v*" ]
+  pull_request:
+    branches: [ "main", "dev" ]
+  schedule:
+    - cron: '0 0 * * 0'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        module: [ finance-manager-app, notification-service ]
+    defaults:
+      run:
+        working-directory: ${{ matrix.module }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'maven'
+          cache-dependency-path: ${{ matrix.module }}/pom.xml
+      - name: Build and test with Maven
+        run: mvn clean package
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.module }}-jar
+          path: ${{ matrix.module }}/target/*.jar
+
+  codeql:
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: 'java'
+      - name: Build finance-manager-app (нужен для анализа)
+        working-directory: finance-manager-app
+        run: mvn -B verify
+      - name: Build notification-service (нужен для анализа)
+        working-directory: notification-service
+        run: mvn -B verify
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+
+  sonarcloud:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'maven'
+          cache-dependency-path: finance-manager-app/pom.xml
+      - name: Cache SonarCloud packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
+      - name: Build, test and analyze
+        working-directory: finance-manager-app
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: >
+          mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar
+          -Dsonar.projectKey=Korteng_finance-manager
+          -Dsonar.organization=korteng
