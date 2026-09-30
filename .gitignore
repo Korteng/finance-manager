@@ -70,3 +70,6 @@ dependency-reduced-pom.xml
 python-observer/__pycache__/
 python-observer/.env
 *.pyc
+
+# папка автосохранения файлов из Claude-чата
+Claude outputs/
