@@ -13,6 +13,7 @@ spec:
       labels:
         app: notification-service
     spec:
+      automountServiceAccountToken: false
       containers:
         - name: notification-service
           image: korteng/notification-service:latest

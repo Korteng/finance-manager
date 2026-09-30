@@ -13,6 +13,7 @@ spec:
       labels:
         app: finance-app
     spec:
+      automountServiceAccountToken: false
       containers:
         - name: finance-app
           image: korteng/finance-manager-app:latest
