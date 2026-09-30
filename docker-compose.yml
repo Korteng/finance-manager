@@ -43,6 +43,10 @@ services:
       SPRING_DATA_REDIS_PORT: 6379
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
       APP_JWT_SECRET: ${APP_JWT_SECRET}
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      RABBITMQ_USER: ${RABBITMQ_USER}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
     depends_on:
       postgres:
         condition: service_healthy
@@ -52,6 +56,8 @@ services:
         condition: service_healthy
       discovery-server:
         condition: service_started
+      rabbitmq:
+        condition: service_healthy
 
   # ---------- Notification Service ----------
   notification-db:
@@ -136,6 +142,7 @@ services:
       - "8090:8090"
     environment:
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
+      FRONTEND_ORIGIN: http://localhost:3001
     depends_on:
       discovery-server:
         condition: service_started
@@ -143,6 +150,18 @@ services:
         condition: service_started
       notification-service:
         condition: service_started
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE_URL: http://localhost:8090
+    container_name: finance-frontend
+    restart: unless-stopped
+    ports:
+      - "3001:80"
+    depends_on:
+      - api-gateway
 
   redis:
       image: redis:7-alpine
@@ -155,6 +174,26 @@ services:
         interval: 5s
         timeout: 5s
         retries: 5
+
+  # ---------- RabbitMQ (dead-letter retry для publish-failures в Kafka) ----------
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: rabbitmq
+    restart: unless-stopped
+    ports:
+      - "5672:5672"    # AMQP
+      - "15672:15672"  # management UI (guest/guest по умолчанию в dev)
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 20s
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
 
   # ---------- Kafka (KRaft mode, без Zookeeper) ----------
   kafka:
@@ -231,5 +270,6 @@ volumes:
   notification_postgres_data:
   camunda_postgres_data:
   kafka_data:
+  rabbitmq_data:
   prometheus_data:
   grafana_data:

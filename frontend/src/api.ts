@@ -1,7 +1,15 @@
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'
+import type { AuthResponse, Budget, Category, Transaction } from './types'
 
-async function request(path, { method = 'GET', token, body } = {}) {
-    const headers = { 'Content-Type': 'application/json' }
+const BASE_URL: string = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'
+
+interface RequestOptions {
+    method?: string
+    token?: string | null
+    body?: unknown
+}
+
+async function request<T>(path: string, { method = 'GET', token, body }: RequestOptions = {}): Promise<T> {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' }
     if (token) headers.Authorization = `Bearer ${token}`
 
     const response = await fetch(`${BASE_URL}${path}`, {
@@ -21,35 +29,48 @@ async function request(path, { method = 'GET', token, body } = {}) {
         throw new Error(message)
     }
 
-    if (response.status === 204) return null
+    if (response.status === 204) return null as T
     return response.json()
 }
 
+export interface CreateTransactionRequest {
+    amount: number
+    currency: string
+    categoryId: number
+    description?: string
+}
+
+export interface SetBudgetRequest {
+    categoryId: number
+    period: string
+    limitAmount: number
+}
+
 export const api = {
-    login: (username, password) =>
-        request('/api/auth/login', { method: 'POST', body: { username, password } }),
+    login: (username: string, password: string) =>
+        request<AuthResponse>('/api/auth/login', { method: 'POST', body: { username, password } }),
 
-    register: (username, password) =>
-        request('/api/auth/register', { method: 'POST', body: { username, password } }),
+    register: (username: string, password: string) =>
+        request<AuthResponse>('/api/auth/register', { method: 'POST', body: { username, password } }),
 
-    logout: (token) =>
-        request('/api/auth/logout', { method: 'POST', token }),
+    logout: (token: string | null) =>
+        request<null>('/api/auth/logout', { method: 'POST', token }),
 
-    getCategories: (token) => request('/api/categories', { token }),
+    getCategories: (token: string) => request<Category[]>('/api/categories', { token }),
 
-    listTransactions: (token, { categoryId } = {}) => {
+    listTransactions: (token: string, { categoryId }: { categoryId?: number | string } = {}) => {
         const params = new URLSearchParams()
-        if (categoryId) params.set('categoryId', categoryId)
+        if (categoryId) params.set('categoryId', String(categoryId))
         const qs = params.toString()
-        return request(`/api/transactions${qs ? `?${qs}` : ''}`, { token })
+        return request<Transaction[]>(`/api/transactions${qs ? `?${qs}` : ''}`, { token })
     },
 
-    createTransaction: (token, body) =>
-        request('/api/transactions', { method: 'POST', token, body }),
+    createTransaction: (token: string, body: CreateTransactionRequest) =>
+        request<Transaction>('/api/transactions', { method: 'POST', token, body }),
 
-    listBudgets: (token, period) =>
-        request(`/api/budgets${period ? `?period=${period}` : ''}`, { token }),
+    listBudgets: (token: string, period?: string) =>
+        request<Budget[]>(`/api/budgets${period ? `?period=${period}` : ''}`, { token }),
 
-    setBudget: (token, body) =>
-        request('/api/budgets', { method: 'POST', token, body }),
+    setBudget: (token: string, body: SetBudgetRequest) =>
+        request<Budget>('/api/budgets', { method: 'POST', token, body }),
 }

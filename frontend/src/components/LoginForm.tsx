@@ -1,18 +1,24 @@
-import { useState } from 'react'
-import { api } from '../api.js'
+import { useState, type FormEvent } from 'react'
+import { api } from '../api'
+
+type Mode = 'login' | 'register'
+
+interface LoginFormProps {
+    onAuth: (token: string) => void
+}
 
 /**
  * Один экран на вход и регистрацию - переключаются радиокнопкой, чтобы не городить
  * роутер ради одной лишней страницы.
  */
-export default function LoginForm({ onAuth }) {
-    const [mode, setMode] = useState('login') // 'login' | 'register'
+export default function LoginForm({ onAuth }: LoginFormProps) {
+    const [mode, setMode] = useState<Mode>('login')
     const [username, setUsername] = useState('')
     const [password, setPassword] = useState('')
-    const [error, setError] = useState(null)
+    const [error, setError] = useState<string | null>(null)
     const [loading, setLoading] = useState(false)
 
-    async function handleSubmit(e) {
+    async function handleSubmit(e: FormEvent<HTMLFormElement>) {
         e.preventDefault()
         setError(null)
         setLoading(true)
@@ -22,7 +28,7 @@ export default function LoginForm({ onAuth }) {
                 : await api.register(username, password)
             onAuth(token)
         } catch (err) {
-            setError(err.message)
+            setError(err instanceof Error ? err.message : String(err))
         } finally {
             setLoading(false)
         }
