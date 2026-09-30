@@ -43,6 +43,11 @@ class TransactionEventPublisherTest {
     @BeforeEach
     void setUp() {
         publisher = new TransactionEventPublisher(kafkaTemplate, rabbitTemplate);
+        // @Value-поля Spring заполняет только через контейнер - здесь бин создаётся
+        // вручную (без контекста), поэтому проставляем их так же, как это сделал бы
+        // application.yml, иначе publishFallback() зовёт convertAndSend(null, null, ...).
+        ReflectionTestUtils.setField(publisher, "deadLetterExchange", "transaction-events.dlx.exchange");
+        ReflectionTestUtils.setField(publisher, "processRoutingKey", "process");
     }
 
     private TransactionEvent event() {
@@ -81,6 +86,6 @@ class TransactionEventPublisherTest {
 
         ReflectionTestUtils.invokeMethod(publisher, "publishFallback", event, new RuntimeException("boom"));
 
-        verify(rabbitTemplate).convertAndSend(anyString(), anyString(), eq(event));
+        verify(rabbitTemplate).convertAndSend("transaction-events.dlx.exchange", "process", event);
     }
 }
