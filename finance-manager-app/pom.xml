@@ -222,8 +222,7 @@
 				<version>3.5.3</version>
 				<configuration>
 					<argLine>
-						-Djdk.attach.allowAttachSelf=true
-						-XX:+EnableDynamicAgentLoading
+						@{argLine} -Djdk.attach.allowAttachSelf=true -XX:+EnableDynamicAgentLoading
 					</argLine>
 				</configuration>
 			</plugin>
