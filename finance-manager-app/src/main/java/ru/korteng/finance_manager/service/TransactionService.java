@@ -6,7 +6,6 @@ import ru.korteng.finance_manager.repository.BudgetRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.korteng.finance_manager.entity.Category;
@@ -34,10 +33,8 @@ public class TransactionService {
 
     private final TransactionRepository transactionRepository;
     private final CategoryRepository categoryRepository;
-    private final KafkaTemplate<String, TransactionEvent> kafkaTemplate;
+    private final TransactionEventPublisher eventPublisher;
     private final BudgetRepository budgetRepository;
-
-    private static final String TOPIC = "transaction-events";
 
     @Transactional
     public Transaction createTransaction(TransactionRequest request, Long userId) {
@@ -73,8 +70,7 @@ public class TransactionService {
         payload.setType("EXPENSE");
         event.setPayload(payload);
 
-        kafkaTemplate.send(TOPIC, event.getEventId().toString(), event);
-        log.info("Published TransactionEvent, eventId={}", event.getEventId());
+        eventPublisher.publish(event);
     }
 
     private void publishBudgetExceeded(Transaction transaction, BigDecimal spent, BigDecimal limit) {
@@ -91,9 +87,7 @@ public class TransactionService {
         payload.setLimit(limit);
         event.setPayload(payload);
 
-        kafkaTemplate.send(TOPIC, event.getEventId().toString(), event);
-        log.info("Published BUDGET_EXCEEDED event, eventId={}, userId={}, category={}",
-                event.getEventId(), transaction.getUserId(), transaction.getCategory().getName());
+        eventPublisher.publish(event);
     }
 
     @Transactional(readOnly = true)

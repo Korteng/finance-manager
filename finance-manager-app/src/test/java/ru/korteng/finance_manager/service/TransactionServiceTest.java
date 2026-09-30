@@ -6,7 +6,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.kafka.core.KafkaTemplate;
 import ru.korteng.finance_manager.dto.TransactionRequest;
 import ru.korteng.finance_manager.entity.Budget;
 import ru.korteng.finance_manager.entity.Category;
@@ -30,8 +29,6 @@ class TransactionServiceTest {
 
     private static final Long USER_ID = 1L;
     private static final Long CATEGORY_ID = 10L;
-    private static final String TOPIC = "transaction-events";
-
     @Mock
     private TransactionRepository transactionRepository;
 
@@ -39,7 +36,7 @@ class TransactionServiceTest {
     private CategoryRepository categoryRepository;
 
     @Mock
-    private KafkaTemplate<String, TransactionEvent> kafkaTemplate;
+    private TransactionEventPublisher eventPublisher;
 
     @Mock
     private BudgetRepository budgetRepository;
@@ -82,7 +79,7 @@ class TransactionServiceTest {
 
         transactionService.createTransaction(request(new BigDecimal("500")), USER_ID);
 
-        verify(kafkaTemplate, times(1)).send(eq(TOPIC), anyString(), any(TransactionEvent.class));
+        verify(eventPublisher, times(1)).publish(any(TransactionEvent.class));
         verify(transactionRepository, never()).sumAmountForCategoryInPeriod(any(), any(), any(), any());
     }
 
@@ -98,7 +95,7 @@ class TransactionServiceTest {
         transactionService.createTransaction(request(new BigDecimal("500")), USER_ID);
 
         ArgumentCaptor<TransactionEvent> captor = ArgumentCaptor.forClass(TransactionEvent.class);
-        verify(kafkaTemplate, times(1)).send(eq(TOPIC), anyString(), captor.capture());
+        verify(eventPublisher, times(1)).publish(captor.capture());
         assertEquals("TRANSACTION_CREATED", captor.getValue().getEventType());
     }
 
@@ -114,7 +111,7 @@ class TransactionServiceTest {
         transactionService.createTransaction(request(new BigDecimal("500")), USER_ID);
 
         ArgumentCaptor<TransactionEvent> captor = ArgumentCaptor.forClass(TransactionEvent.class);
-        verify(kafkaTemplate, times(2)).send(eq(TOPIC), anyString(), captor.capture());
+        verify(eventPublisher, times(2)).publish(captor.capture());
 
         TransactionEvent budgetExceededEvent = captor.getAllValues().stream()
                 .filter(e -> "BUDGET_EXCEEDED".equals(e.getEventType()))
@@ -138,6 +135,6 @@ class TransactionServiceTest {
 
         transactionService.createTransaction(request(new BigDecimal("500")), USER_ID);
 
-        verify(kafkaTemplate, times(1)).send(eq(TOPIC), anyString(), any(TransactionEvent.class));
+        verify(eventPublisher, times(1)).publish(any(TransactionEvent.class));
     }
 }
