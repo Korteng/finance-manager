@@ -1,12 +1,11 @@
 package ru.korteng.finance_manager.service;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.kafka.core.KafkaTemplate;
 import ru.korteng.finance_manager.dto.TransactionRequest;
 import ru.korteng.finance_manager.entity.Budget;
 import ru.korteng.finance_manager.entity.Category;
@@ -17,8 +16,10 @@ import ru.korteng.finance_manager.repository.CategoryRepository;
 import ru.korteng.finance_manager.repository.TransactionRepository;
 
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -30,8 +31,6 @@ class TransactionServiceTest {
 
     private static final Long USER_ID = 1L;
     private static final Long CATEGORY_ID = 10L;
-    private static final String TOPIC = "transaction-events";
-
     @Mock
     private TransactionRepository transactionRepository;
 
@@ -39,13 +38,19 @@ class TransactionServiceTest {
     private CategoryRepository categoryRepository;
 
     @Mock
-    private KafkaTemplate<String, TransactionEvent> kafkaTemplate;
+    private TransactionEventPublisher eventPublisher;
 
     @Mock
     private BudgetRepository budgetRepository;
 
-    @InjectMocks
+    private final Clock clock = Clock.fixed(Instant.parse("2024-01-15T10:00:00Z"), ZoneOffset.UTC);
+
     private TransactionService transactionService;
+
+    @BeforeEach
+    void setUp() {
+        transactionService = new TransactionService(transactionRepository, categoryRepository, eventPublisher, budgetRepository, clock);
+    }
 
     private Category category() {
         Category category = new Category();
@@ -82,7 +87,7 @@ class TransactionServiceTest {
 
         transactionService.createTransaction(request(new BigDecimal("500")), USER_ID);
 
-        verify(kafkaTemplate, times(1)).send(eq(TOPIC), anyString(), any(TransactionEvent.class));
+        verify(eventPublisher, times(1)).publish(any(TransactionEvent.class));
         verify(transactionRepository, never()).sumAmountForCategoryInPeriod(any(), any(), any(), any());
     }
 
@@ -98,7 +103,7 @@ class TransactionServiceTest {
         transactionService.createTransaction(request(new BigDecimal("500")), USER_ID);
 
         ArgumentCaptor<TransactionEvent> captor = ArgumentCaptor.forClass(TransactionEvent.class);
-        verify(kafkaTemplate, times(1)).send(eq(TOPIC), anyString(), captor.capture());
+        verify(eventPublisher, times(1)).publish(captor.capture());
         assertEquals("TRANSACTION_CREATED", captor.getValue().getEventType());
     }
 
@@ -114,7 +119,7 @@ class TransactionServiceTest {
         transactionService.createTransaction(request(new BigDecimal("500")), USER_ID);
 
         ArgumentCaptor<TransactionEvent> captor = ArgumentCaptor.forClass(TransactionEvent.class);
-        verify(kafkaTemplate, times(2)).send(eq(TOPIC), anyString(), captor.capture());
+        verify(eventPublisher, times(2)).publish(captor.capture());
 
         TransactionEvent budgetExceededEvent = captor.getAllValues().stream()
                 .filter(e -> "BUDGET_EXCEEDED".equals(e.getEventType()))
@@ -138,6 +143,6 @@ class TransactionServiceTest {
 
         transactionService.createTransaction(request(new BigDecimal("500")), USER_ID);
 
-        verify(kafkaTemplate, times(1)).send(eq(TOPIC), anyString(), any(TransactionEvent.class));
+        verify(eventPublisher, times(1)).publish(any(TransactionEvent.class));
     }
 }

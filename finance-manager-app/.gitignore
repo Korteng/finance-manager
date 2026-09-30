@@ -1,0 +1,5 @@
+
+# профилирование / локальные логи
+*.jfr
+app.log
+jfr-converter.jar

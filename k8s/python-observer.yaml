@@ -13,6 +13,7 @@ spec:
       labels:
         app: python-observer
     spec:
+      automountServiceAccountToken: false
       containers:
         - name: python-observer
           image: korteng/python-observer:latest
@@ -24,6 +25,13 @@ spec:
               value: "http://finance-app:8080"
             - name: TARGET_NOTIF_URL
               value: "http://notification-service:8081"
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "100m"
+              memory: "128Mi"
 ---
 apiVersion: v1
 kind: Service

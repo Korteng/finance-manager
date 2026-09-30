@@ -6,7 +6,6 @@ import ru.korteng.finance_manager.repository.BudgetRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.korteng.finance_manager.entity.Category;
@@ -18,6 +17,7 @@ import ru.korteng.finance_manager.repository.CategoryRepository;
 import ru.korteng.finance_manager.repository.TransactionRepository;
 
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -34,10 +34,9 @@ public class TransactionService {
 
     private final TransactionRepository transactionRepository;
     private final CategoryRepository categoryRepository;
-    private final KafkaTemplate<String, TransactionEvent> kafkaTemplate;
+    private final TransactionEventPublisher eventPublisher;
     private final BudgetRepository budgetRepository;
-
-    private static final String TOPIC = "transaction-events";
+    private final Clock clock;
 
     @Transactional
     public Transaction createTransaction(TransactionRequest request, Long userId) {
@@ -49,7 +48,7 @@ public class TransactionService {
         transaction.setCurrency(request.getCurrency().toUpperCase());
         transaction.setCategory(category);
         transaction.setDescription(request.getDescription());
-        transaction.setCreatedAt(Instant.now());
+        transaction.setCreatedAt(Instant.now(clock));
         transaction.setUserId(userId);
 
         Transaction saved = transactionRepository.save(transaction);
@@ -65,7 +64,7 @@ public class TransactionService {
         event.setEventId(UUID.randomUUID());
         event.setEventType("TRANSACTION_CREATED");
         event.setUserId(transaction.getUserId());
-        event.setOccurredAt(Instant.now());
+        event.setOccurredAt(Instant.now(clock));
 
         TransactionEvent.Payload payload = new TransactionEvent.Payload();
         payload.setAmount(transaction.getAmount());
@@ -73,8 +72,7 @@ public class TransactionService {
         payload.setType("EXPENSE");
         event.setPayload(payload);
 
-        kafkaTemplate.send(TOPIC, event.getEventId().toString(), event);
-        log.info("Published TransactionEvent, eventId={}", event.getEventId());
+        eventPublisher.publish(event);
     }
 
     private void publishBudgetExceeded(Transaction transaction, BigDecimal spent, BigDecimal limit) {
@@ -82,7 +80,7 @@ public class TransactionService {
         event.setEventId(UUID.randomUUID());
         event.setEventType("BUDGET_EXCEEDED");
         event.setUserId(transaction.getUserId());
-        event.setOccurredAt(Instant.now());
+        event.setOccurredAt(Instant.now(clock));
 
         TransactionEvent.Payload payload = new TransactionEvent.Payload();
         payload.setAmount(spent);
@@ -91,9 +89,7 @@ public class TransactionService {
         payload.setLimit(limit);
         event.setPayload(payload);
 
-        kafkaTemplate.send(TOPIC, event.getEventId().toString(), event);
-        log.info("Published BUDGET_EXCEEDED event, eventId={}, userId={}, category={}",
-                event.getEventId(), transaction.getUserId(), transaction.getCategory().getName());
+        eventPublisher.publish(event);
     }
 
     @Transactional(readOnly = true)
@@ -113,7 +109,7 @@ public class TransactionService {
     }
 
     private void checkBudget(Transaction transaction) {
-        LocalDate period = YearMonth.now().atDay(1);
+        LocalDate period = YearMonth.now(clock).atDay(1);
         Long categoryId = transaction.getCategory().getId();
         Long userId = transaction.getUserId();
 
