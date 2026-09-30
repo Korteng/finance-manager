@@ -45,6 +45,7 @@ flowchart LR
 - **Spring Data JPA + PostgreSQL** - отдельная БД на каждый сервис, сущности и DTO разнесены по разным пакетам, наружу через API отдаются только DTO
 - **Flyway** - версионирование схемы БД
 - **Apache Kafka** (KRaft mode, без Zookeeper) - асинхронный обмен событиями между сервисами
+- **Resilience4j** - circuit breaker + retry вокруг публикации Kafka-событий, подробности в разделе ниже
 - **Redis** - blacklist для отозванных JWT-токенов (logout)
 - **Docker Compose** - оркестрация всех сервисов для локальной разработки
 - **Kubernetes** - манифесты Deployment/Service/ConfigMap/Secret/HPA/Ingress для оркестрации в кластере, подробности в [`K8S.md`](K8S.md)
@@ -188,6 +189,21 @@ histogram_quantile(0.99, sum(rate(probe_duration_seconds_bucket[5m])) by (le, ta
 Уже вписан в корневой `docker-compose.yml` и в scrape-конфиг Prometheus. Метрики: `http://localhost:9100/metrics`. Liveness: `http://localhost:9100/health`.
 
 Подробности и локальный запуск без compose - в [`python-observer/README.md`](python-observer/README.md).
+
+## Resilience4j - отказоустойчивость публикации событий
+
+Публикация событий в Kafka (`TRANSACTION_CREATED`, `BUDGET_EXCEEDED`) обёрнута в **circuit breaker + retry** (`resilience4j-spring-boot3`), логика вынесена в отдельный компонент [`TransactionEventPublisher`](finance-manager-app/src/main/java/ru/korteng/finance_manager/service/TransactionEventPublisher.java) - это осознанное архитектурное решение, а не произвольное разделение файлов: Spring AOP строит proxy вокруг бина, а `@CircuitBreaker`/`@Retry` не перехватывают self-invocation (вызов `this.method()` изнутри того же класса идёт мимо proxy), поэтому логику публикации пришлось вынести за пределы `TransactionService`, который её вызывает как внешнюю зависимость.
+
+Конфигурация (`application.yml`, инстанс `kafkaPublisher`):
+
+- **Circuit breaker** - sliding window типа `COUNT_BASED`, порог по failure rate, `wait-duration-in-open-state` перед переходом в half-open, здоровье брейкера видно в `/actuator/health`.
+- **Retry** - несколько попыток с экспоненциальным backoff перед тем, как сработает брейкер.
+
+Цель - не дать временную недоступность Kafka (или брокера под нагрузкой) положить основной путь создания транзакции: REST-запрос на `POST /api/transactions` не должен падать 500-й ошибкой из-за проблем с побочным асинхронным эффектом.
+
+## Профилирование под нагрузкой
+
+Разовый прогон `/actuator/health` под синтетической нагрузкой через JDK Flight Recorder - разбор, куда реально уходит CPU-время (13.75% семплов ушло в реальный round-trip до Postgres при проверке соединения), и вывод о разделении `liveness`/`readiness` health-групп. Подробности, команды и интерактивный flame graph - в [`finance-manager-app/docs/profiling/PROFILING.md`](finance-manager-app/docs/profiling/PROFILING.md).
 
 ## Тестирование
 
