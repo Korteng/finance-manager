@@ -13,10 +13,10 @@ import ru.korteng.finance_manager.repository.CategoryRepository;
 import ru.korteng.finance_manager.repository.TransactionRepository;
 
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.YearMonth;
-import java.time.ZoneOffset;
 import java.util.List;
 
 @Service
@@ -26,6 +26,7 @@ public class BudgetService {
     private final BudgetRepository budgetRepository;
     private final CategoryRepository categoryRepository;
     private final TransactionRepository transactionRepository;
+    private final Clock clock;
 
     @Transactional
     public BudgetResponse setBudget(BudgetRequest request, Long userId) {
@@ -57,8 +58,10 @@ public class BudgetService {
     }
 
     private BigDecimal spentForPeriod(Long userId, Long categoryId, LocalDate periodStart) {
-        Instant from = periodStart.atStartOfDay().atZone(ZoneOffset.UTC).toInstant();
-        Instant to = periodStart.plusMonths(1).atStartOfDay(ZoneOffset.UTC).toInstant();
+        // Часовой пояс из Clock, не UTC: период должен совпадать с тем, что пользователь
+        // считает "своим" месяцем (см. ClockConfig - тот же баг, что был в TransactionService.checkBudget).
+        Instant from = periodStart.atStartOfDay(clock.getZone()).toInstant();
+        Instant to = periodStart.plusMonths(1).atStartOfDay(clock.getZone()).toInstant();
         return transactionRepository.sumAmountForCategoryInPeriod(userId, categoryId, from, to);
     }
 }

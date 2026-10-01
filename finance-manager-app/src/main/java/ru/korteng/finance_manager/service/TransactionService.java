@@ -24,7 +24,6 @@ import java.util.UUID;
 
 import java.time.LocalDate;
 import java.time.YearMonth;
-import java.time.ZoneOffset;
 import java.util.Optional;
 
 @Service
@@ -119,8 +118,8 @@ public class TransactionService {
         }
         Budget budget = budgetOpt.get();
 
-        Instant from = period.atStartOfDay(ZoneOffset.UTC).toInstant();
-        Instant to = period.plusMonths(1).atStartOfDay(ZoneOffset.UTC).toInstant();
+        Instant from = period.atStartOfDay(clock.getZone()).toInstant();
+        Instant to = period.plusMonths(1).atStartOfDay(clock.getZone()).toInstant();
         BigDecimal spent = transactionRepository.sumAmountForCategoryInPeriod(userId, categoryId, from, to);
 
         if (spent.compareTo(budget.getLimitAmount()) > 0) {

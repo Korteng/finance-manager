@@ -1,15 +1,21 @@
-import { useEffect, useState } from 'react'
-import { api } from '../api.js'
+import { useEffect, useState, type FormEvent } from 'react'
+import { api } from '../api'
+import type { Category, Transaction } from '../types'
 
-export default function TransactionsTab({ token, categories }) {
-    const [transactions, setTransactions] = useState([])
+interface TransactionsTabProps {
+    token: string
+    categories: Category[]
+}
+
+export default function TransactionsTab({ token, categories }: TransactionsTabProps) {
+    const [transactions, setTransactions] = useState<Transaction[]>([])
     const [filterCategoryId, setFilterCategoryId] = useState('')
-    const [error, setError] = useState(null)
+    const [error, setError] = useState<string | null>(null)
     const [loading, setLoading] = useState(false)
 
     const [amount, setAmount] = useState('')
     const [currency, setCurrency] = useState('RUB')
-    const [categoryId, setCategoryId] = useState(categories[0]?.id ?? '')
+    const [categoryId, setCategoryId] = useState<number | string>(categories[0]?.id ?? '')
     const [description, setDescription] = useState('')
     const [submitting, setSubmitting] = useState(false)
 
@@ -22,16 +28,17 @@ export default function TransactionsTab({ token, categories }) {
             })
             setTransactions(data)
         } catch (err) {
-            setError(err.message)
+            setError(err instanceof Error ? err.message : String(err))
         } finally {
             setLoading(false)
         }
     }
 
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // осознанный паттерн "загрузить данные при смене зависимости" - не бесконечный цикл
+    // eslint-disable-next-line react-hooks/exhaustive-deps, react-hooks/set-state-in-effect
     useEffect(() => { loadTransactions() }, [filterCategoryId])
 
-    async function handleSubmit(e) {
+    async function handleSubmit(e: FormEvent<HTMLFormElement>) {
         e.preventDefault()
         setError(null)
         setSubmitting(true)
@@ -46,7 +53,7 @@ export default function TransactionsTab({ token, categories }) {
             setDescription('')
             await loadTransactions()
         } catch (err) {
-            setError(err.message)
+            setError(err instanceof Error ? err.message : String(err))
         } finally {
             setSubmitting(false)
         }

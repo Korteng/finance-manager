@@ -3,6 +3,11 @@ spring:
     name: finance-manager-app
   kafka:
     bootstrap-servers: localhost:9092
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: ${RABBITMQ_USER:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
   data:
     redis:
       host: localhost
@@ -33,6 +38,7 @@ logging:
     org.hibernate.orm.jdbc.bind: TRACE
 
 app:
+  timezone: ${APP_TIMEZONE:Europe/Moscow}
   jwt:
     secret: ${APP_JWT_SECRET:dev-only-insecure-default-secret-change-me-32chars-min}
     expiration-ms: 86400000
@@ -66,6 +72,14 @@ eureka:
   client:
     service-url:
       defaultZone: http://localhost:8761/eureka/
+app-dead-letter:
+  exchange: transaction-events.dlx.exchange
+  process-routing-key: process
+  retry-routing-key: retry
+  parked-routing-key: parked
+  retry-ttl-ms: 30000
+  max-retry-attempts: 5
+
 resilience4j:
   circuitbreaker:
     instances:

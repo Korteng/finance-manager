@@ -1,16 +1,19 @@
 import { useEffect, useState } from 'react'
-import { api } from './api.js'
-import LoginForm from './components/LoginForm.jsx'
-import TransactionsTab from './components/TransactionsTab.jsx'
-import BudgetsTab from './components/BudgetsTab.jsx'
+import { api } from './api'
+import LoginForm from './components/LoginForm'
+import TransactionsTab from './components/TransactionsTab'
+import BudgetsTab from './components/BudgetsTab'
+import type { Category } from './types'
+
+type Tab = 'transactions' | 'budgets'
 
 export default function App() {
   // Токен живёт только в памяти вкладки (не localStorage) - осознанное решение:
   // для демо-приложения это безопаснее и проще, чем городить хранение и его инвалидацию.
   // Цена - разлогин при обновлении страницы, для пет-проекта это ок.
-  const [token, setToken] = useState(null)
-  const [categories, setCategories] = useState([])
-  const [tab, setTab] = useState('transactions')
+  const [token, setToken] = useState<string | null>(null)
+  const [categories, setCategories] = useState<Category[]>([])
+  const [tab, setTab] = useState<Tab>('transactions')
 
   useEffect(() => {
     if (!token) return

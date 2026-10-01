@@ -25,6 +25,8 @@ flowchart LR
     APP -- "logout" --> REDIS
     APP --> KAFKA{{"Kafka<br/>transaction-events"}}
     KAFKA --> NOTIF
+    APP -. "publish failed (retries/circuit exhausted)" .-> RABBIT{{"RabbitMQ<br/>dead-letter retry"}}
+    RABBIT -. "retry publish" .-> APP
     NOTIF --> DB2[("notification_db<br/>(Postgres)")]
 
     APP -. "register" .-> DISC["discovery-server<br/>(Eureka)"]
@@ -47,7 +49,8 @@ flowchart LR
 - **Apache Kafka** (KRaft mode, без Zookeeper) - асинхронный обмен событиями между сервисами
 - **Resilience4j** - circuit breaker + retry вокруг публикации Kafka-событий, подробности в разделе ниже
 - **Redis** - blacklist для отозванных JWT-токенов (logout)
-- **Docker Compose** - оркестрация всех сервисов для локальной разработки
+- **RabbitMQ** - dead-letter retry для событий, которые не удалось опубликовать в Kafka даже после Resilience4j circuit breaker + retry (TTL+DLX delayed-retry, подробности в разделе ниже), management UI на `:15672`
+- **Docker Compose** - оркестрация всех сервисов для локальной разработки, включая production-like сборку фронтенда (nginx)
 - **Kubernetes** - манифесты Deployment/Service/ConfigMap/Secret/HPA/Ingress для оркестрации в кластере, подробности в [`K8S.md`](K8S.md)
 - **Spring Cloud Netflix Eureka** - service discovery, `finance-manager-app` и `notification-service` регистрируются как клиенты в `discovery-server`, дашборд доступен на `:8761`
 - **Spring Cloud Gateway** - единая точка входа (`:8090`), роутинг по Eureka service discovery (`/api/notifications/**` -> notification-service, остальное `/api/**` -> finance-manager-app)
@@ -58,8 +61,9 @@ flowchart LR
 - **GitHub Actions + CodeQL** - CI и статический анализ безопасности
 
 **Frontend**
-- **React 19 + Vite** - тёмная тема, две вкладки (Транзакции, Бюджеты)
+- **React 19 + Vite + TypeScript** - тёмная тема, две вкладки (Транзакции, Бюджеты)
 - Токен JWT живёт только в памяти вкладки, без localStorage - разлогин при обновлении страницы, для пет-проекта это осознанный компромисс в пользу простоты
+- **Docker (multi-stage)** - сборка Vite-бандла в node-образе, отдача статики nginx'ом (`frontend/Dockerfile`, `frontend/nginx.conf`), `VITE_API_BASE_URL` подставляется на этапе сборки как build-arg (Vite инлайнит `VITE_*`-переменные в бандл, а не читает их в рантайме)
 
 ## Быстрый старт
 
@@ -73,21 +77,25 @@ cp .env.example .env
 docker compose up --build
 ```
 
+`docker compose up --build` поднимает и фронтенд (production-like сборка, статика на nginx) - отдельно устанавливать/собирать его не нужно.
+
 После запуска доступны:
 
 | Сервис | URL |
 |---|---|
+| frontend | http://localhost:3001 |
 | finance-manager-app | http://localhost:8080 |
 | notification-service | http://localhost:8081 |
 | discovery-server (Eureka) | http://localhost:8761 |
 | api-gateway | http://localhost:8090 |
 | camunda-service (Cockpit/Tasklist) | http://localhost:8082 |
+| RabbitMQ (management UI) | http://localhost:15672 |
 | Prometheus | http://localhost:9090 |
 | Grafana | http://localhost:3000 (admin/admin) |
 | Kafka | localhost:9092 |
 | python-observer | http://localhost:9100/metrics |
 
-Frontend (отдельно, в соседней консоли):
+Для дев-режима фронтенда с hot-reload (вместо контейнера) - отдельно, в соседней консоли:
 
 ```bash
 cd frontend
@@ -95,7 +103,7 @@ npm install
 npm run dev
 ```
 
-По умолчанию фронтенд ходит на `http://localhost:8080`, переопределяется переменной `VITE_API_BASE_URL`. Приложение доступно на `http://localhost:5173`.
+Приложение доступно на `http://localhost:5173`, ходит на `api-gateway` (`http://localhost:8090` по умолчанию), переопределяется переменной `VITE_API_BASE_URL`.
 
 ## API
 
@@ -200,6 +208,25 @@ histogram_quantile(0.99, sum(rate(probe_duration_seconds_bucket[5m])) by (le, ta
 - **Retry** - несколько попыток с экспоненциальным backoff перед тем, как сработает брейкер.
 
 Цель - не дать временную недоступность Kafka (или брокера под нагрузкой) положить основной путь создания транзакции: REST-запрос на `POST /api/transactions` не должен падать 500-й ошибкой из-за проблем с побочным асинхронным эффектом.
+
+Если и после retry, и после открытия circuit breaker событие всё равно не доставлено - оно не теряется: `publishFallback` передаёт его в RabbitMQ dead-letter retry (следующий раздел). Resilience4j отвечает за быстрый локальный retry в рамках одного запроса, RabbitMQ - за то, чтобы событие не потерялось, если этого не хватило.
+
+## RabbitMQ - dead-letter retry для недоставленных событий
+
+Второй, более "тяжёлый" уровень отказоустойчивости публикации событий - для случаев, когда Resilience4j (circuit breaker + retry, выше) не справился и `TransactionEventPublisher.publishFallback` сработал. Событие не логируется как потерянное, а уходит в RabbitMQ по схеме classic TTL+DLX delayed-retry:
+
+```
+publishFallback() -> [process queue] --consumer пробует Kafka снова-->
+  успех: ack, событие доставлено
+  фейл, попыток < max: reject(requeue=false) --DLX--> [retry-wait queue]
+      --TTL истёк--DLX--> обратно в [process queue] (цикл)
+  фейл, попыток >= max: вручную публикуется в [parked queue], ack
+      (финальная парковка для ручного разбора/replay, авто-retry прекращён)
+```
+
+Счётчик попыток не персистится отдельно - `DeadLetterRetryConsumer` читает заголовок `x-death`, который RabbitMQ сам добавляет на каждый dead-letter того же сообщения (сколько раз оно прошло через `process`-очередь). Конфигурация (`application.yml`, префикс `app-dead-letter`): имя exchange/routing key для каждой из трёх очередей, `retry-ttl-ms` (задержка перед повторной попыткой) и `max-retry-attempts` (после которого - парковка). Реализация - [`RabbitMQConfig`](finance-manager-app/src/main/java/ru/korteng/finance_manager/config/RabbitMQConfig.java) (топология очередей/exchange) и [`DeadLetterRetryConsumer`](finance-manager-app/src/main/java/ru/korteng/finance_manager/service/DeadLetterRetryConsumer.java) (сам retry-цикл).
+
+Management UI - `http://localhost:15672` (учётные данные - `RABBITMQ_USER`/`RABBITMQ_PASSWORD` из `.env`), там видны все три очереди (`transaction-events.process`, `.retry`, `.parked`) и можно руками посмотреть/переопубликовать застрявшие в `.parked` сообщения.
 
 ## Профилирование под нагрузкой
 

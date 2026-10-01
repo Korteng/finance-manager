@@ -1,18 +1,24 @@
-import { useEffect, useState } from 'react'
-import { api } from '../api.js'
+import { useEffect, useState, type FormEvent } from 'react'
+import { api } from '../api'
+import type { Budget, Category } from '../types'
 
-function currentPeriod() {
+interface BudgetsTabProps {
+    token: string
+    categories: Category[]
+}
+
+function currentPeriod(): string {
     const now = new Date()
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 }
 
-export default function BudgetsTab({ token, categories }) {
+export default function BudgetsTab({ token, categories }: BudgetsTabProps) {
     const [period, setPeriod] = useState(currentPeriod())
-    const [budgets, setBudgets] = useState([])
-    const [error, setError] = useState(null)
+    const [budgets, setBudgets] = useState<Budget[]>([])
+    const [error, setError] = useState<string | null>(null)
     const [loading, setLoading] = useState(false)
 
-    const [categoryId, setCategoryId] = useState(categories[0]?.id ?? '')
+    const [categoryId, setCategoryId] = useState<number | string>(categories[0]?.id ?? '')
     const [limitAmount, setLimitAmount] = useState('')
     const [submitting, setSubmitting] = useState(false)
 
@@ -22,16 +28,17 @@ export default function BudgetsTab({ token, categories }) {
         try {
             setBudgets(await api.listBudgets(token, period))
         } catch (err) {
-            setError(err.message)
+            setError(err instanceof Error ? err.message : String(err))
         } finally {
             setLoading(false)
         }
     }
 
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // осознанный паттерн "загрузить данные при смене зависимости" - не бесконечный цикл
+    // eslint-disable-next-line react-hooks/exhaustive-deps, react-hooks/set-state-in-effect
     useEffect(() => { loadBudgets() }, [period])
 
-    async function handleSubmit(e) {
+    async function handleSubmit(e: FormEvent<HTMLFormElement>) {
         e.preventDefault()
         setError(null)
         setSubmitting(true)
@@ -44,7 +51,7 @@ export default function BudgetsTab({ token, categories }) {
             setLimitAmount('')
             await loadBudgets()
         } catch (err) {
-            setError(err.message)
+            setError(err instanceof Error ? err.message : String(err))
         } finally {
             setSubmitting(false)
         }

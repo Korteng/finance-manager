@@ -6,6 +6,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -34,11 +35,19 @@ class TransactionEventPublisherTest {
     @Mock
     private KafkaTemplate<String, TransactionEvent> kafkaTemplate;
 
+    @Mock
+    private RabbitTemplate rabbitTemplate;
+
     private TransactionEventPublisher publisher;
 
     @BeforeEach
     void setUp() {
-        publisher = new TransactionEventPublisher(kafkaTemplate);
+        publisher = new TransactionEventPublisher(kafkaTemplate, rabbitTemplate);
+        // @Value-поля Spring заполняет только через контейнер - здесь бин создаётся
+        // вручную (без контекста), поэтому проставляем их так же, как это сделал бы
+        // application.yml, иначе publishFallback() зовёт convertAndSend(null, null, ...).
+        ReflectionTestUtils.setField(publisher, "deadLetterExchange", "transaction-events.dlx.exchange");
+        ReflectionTestUtils.setField(publisher, "processRoutingKey", "process");
     }
 
     private TransactionEvent event() {
@@ -69,5 +78,14 @@ class TransactionEventPublisherTest {
 
         assertThatCode(() -> ReflectionTestUtils.invokeMethod(publisher, "publishFallback", event, cause))
                 .doesNotThrowAnyException();
+    }
+
+    @Test
+    void publishFallback_RoutesEventToDeadLetterExchange() {
+        TransactionEvent event = event();
+
+        ReflectionTestUtils.invokeMethod(publisher, "publishFallback", event, new RuntimeException("boom"));
+
+        verify(rabbitTemplate).convertAndSend("transaction-events.dlx.exchange", "process", event);
     }
 }
